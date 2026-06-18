@@ -7,20 +7,17 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
 });
 
-// Функция для получения параметра из URL
 function getUrlParameter(name) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(name);
 }
 
-// Функция для очистки URL от параметров
 function cleanUrl() {
     if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 }
 
-// Функция для защиты от XSS
 function escapeHtml(text) {
     if (text === null || text === undefined) return '';
     const str = String(text);
@@ -31,7 +28,6 @@ function escapeHtml(text) {
               .replace(/'/g, '&#039;');
 }
 
-// Функция выхода (очистка localStorage)
 function logout() {
     if (confirm('Выйти из приложения? URL скрипта и PIN будут удалены.')) {
         localStorage.removeItem('script_url');
@@ -43,23 +39,21 @@ function logout() {
 }
 
 async function init() {
-    // Проверяем параметр ?script= в URL
     const scriptParam = getUrlParameter('script');
     if (scriptParam) {
         SCRIPT_URL = scriptParam;
-        localStorage.setItem('script_url', SCRIPT_URL);        cleanUrl(); // Очищаем URL от параметра
+        localStorage.setItem('script_url', SCRIPT_URL);
+        cleanUrl();
     }
-   
+
     if (!SCRIPT_URL) {
-        openSettings();
-        return;
+        openSettings();        return;
     }
     await checkPinAndLoad();
 }
 
 async function checkPinAndLoad(msg) {
     if (!PIN) {
-        // Пытаемся узнать статус сервера без PIN
         try {
             const res = await fetch(SCRIPT_URL);
             const data = await res.json();
@@ -69,15 +63,14 @@ async function checkPinAndLoad(msg) {
             showPinScreen(false, 'Ошибка сети. Проверьте URL.');
         }
     } else {
-        // Пробуем загрузить с сохраненным PIN
         try {
             const res = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
             const data = await res.json();
-          
+
             if (data.unauthorized || data.error === 'Неверный PIN') {
                 PIN = '';
                 localStorage.removeItem('pin');
-                showPinScreen(false, 'Неверный PIN. Посмотрите его в листе Config вашей таблицы.');
+                showPinScreen(false, 'Неверный PIN. Попробуйте ещё раз или обратитесь к Администратору для сброса.');
             } else if (data.needs_setup) {
                 showPinScreen(true);
             } else {
@@ -96,18 +89,17 @@ function showPinScreen(isSetup, msg) {
     document.getElementById('pin-screen').style.display = 'block';
 
     isSetupMode = isSetup;
-    document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';    document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
+    document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';
+    document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
 
     const msgEl = document.getElementById('pin-message');
     if (msg) { msgEl.textContent = msg; msgEl.style.display = 'block'; }
     else { msgEl.style.display = 'none'; }
 }
-
 async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
     if (!inputPin) return;
 
-    // Проверка минимальной длины PIN (6 цифр)
     if (inputPin.length < 6) {
         alert('PIN должен содержать минимум 6 цифр');
         return;
@@ -119,18 +111,16 @@ async function submitPin() {
 
     if (isSetupMode) {
         try {
-            const res = await fetch(SCRIPT_URL, {
+            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
-          
-            // При no-cors мы не можем прочитать ответ, но запрос отправлен
-            // Проверяем, установился ли PIN, сделав GET запрос
+
             const checkRes = await fetch(SCRIPT_URL);
             const checkData = await checkRes.json();
-          
+
             if (!checkData.needs_setup) {
                 PIN = inputPin;
                 localStorage.setItem('pin', PIN);
@@ -145,8 +135,9 @@ async function submitPin() {
     } else {
         PIN = inputPin;
         localStorage.setItem('pin', PIN);
-        await checkPinAndLoad();    }
-  
+        await checkPinAndLoad();
+    }
+
     btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
     btn.disabled = false;
 }
@@ -154,8 +145,7 @@ async function submitPin() {
 function showMainScreen() {
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
-    document.getElementById('main-screen').style.display = 'block';
-}
+    document.getElementById('main-screen').style.display = 'block';}
 
 async function loadObjects() {
     const list = document.getElementById('objects-list');
@@ -194,7 +184,8 @@ function renderObjects(data) {
 }
 
 function openForm() {
-    document.getElementById('main-screen').style.display = 'none';    document.getElementById('form-screen').style.display = 'block';
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('form-screen').style.display = 'block';
     document.getElementById('form-title').textContent = 'Новый объект';
     document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
@@ -204,7 +195,6 @@ function closeForm() {
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
 }
-
 async function handleSubmit(e) {
     e.preventDefault();
     const data = {
@@ -223,12 +213,12 @@ async function handleSubmit(e) {
         address: document.getElementById('prop-address').value,
         image_main: document.getElementById('prop-image').value,
         active: document.getElementById('prop-active').value,
-        pin: PIN // Добавляем PIN в запрос
+        pin: PIN
     };
     const existingId = document.getElementById('prop-id').value;
     const action = existingId ? 'update' : 'create';
     if (action === 'update') data.id = existingId;
-  
+
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -243,7 +233,9 @@ async function handleSubmit(e) {
 
 async function editObject(id) {
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);        const data = await response.json();
+        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
         const headers = data[0];
         const rows = data.slice(1);
         const obj = {};
@@ -251,9 +243,8 @@ async function editObject(id) {
             const rowObj = {};
             headers.forEach(function(header, i) { rowObj[header] = row[i]; });
             if (rowObj.id === id) Object.assign(obj, rowObj);
-        });
-        if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
-      
+        });        if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
+
         document.getElementById('main-screen').style.display = 'none';
         document.getElementById('form-screen').style.display = 'block';
         document.getElementById('form-title').textContent = 'Редактировать';
@@ -292,7 +283,8 @@ async function deleteObject(id) {
 
 function openSettings() {
     document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('pin-screen').style.display = 'none';    document.getElementById('settings-screen').style.display = 'block';
+    document.getElementById('pin-screen').style.display = 'none';
+    document.getElementById('settings-screen').style.display = 'block';
     document.getElementById('script-url').value = SCRIPT_URL;
 }
 
@@ -300,7 +292,6 @@ function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
     if (SCRIPT_URL) init();
 }
-
 function saveSettings() {
     SCRIPT_URL = document.getElementById('script-url').value;
     localStorage.setItem('script_url', SCRIPT_URL);
