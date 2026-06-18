@@ -70,7 +70,7 @@ async function checkPinAndLoad(msg) {
             if (data.unauthorized || data.error === 'Неверный PIN') {
                 PIN = '';
                 localStorage.removeItem('pin');
-                showPinScreen(false, 'Неверный PIN. Попробуйте ещё раз или обратитесь к Администратору для сброса.');
+                showPinScreen(false, 'Неверный PIN. Попробуйте ещё раз или обратитесь к Администратору.');
             } else if (data.needs_setup) {
                 showPinScreen(true);
             } else {
@@ -198,7 +198,7 @@ function closeForm() {
 async function handleSubmit(e) {
     e.preventDefault();
     const data = {
-        id: document.getElementById('prop-id-input').value,
+        id: document.getElementById('prop-id').value, // Авто-генерация, если пусто
         name: document.getElementById('prop-name').value,
         district: document.getElementById('prop-district').value,
         metro: document.getElementById('prop-metro').value,
@@ -207,18 +207,28 @@ async function handleSubmit(e) {
         rooms: document.getElementById('prop-rooms').value,
         area_min: parseFloat(document.getElementById('prop-area-min').value) || null,
         area_max: parseFloat(document.getElementById('prop-area-max').value) || null,
-        completion_soonest: document.getElementById('prop-completion').value,
+        price_per_sqm: parseFloat(document.getElementById('prop-price-per-sqm').value) || null,
+        completion_soonest: document.getElementById('prop-completion-soonest').value,
+        completion_all: document.getElementById('prop-completion-all').value,
         status: document.getElementById('prop-status').value,
         class: document.getElementById('prop-class').value,
+        finishing: document.getElementById('prop-finishing').value,
+        description: document.getElementById('prop-description').value,
+        image_main: document.getElementById('prop-image-main').value,
+        images_gallery: document.getElementById('prop-images-gallery').value,
+        floor_plans_text: document.getElementById('prop-floor-plans-text').value,
+        floor_plans_images: document.getElementById('prop-floor-plans-images').value,
+        features: document.getElementById('prop-features').value,
         address: document.getElementById('prop-address').value,
-        image_main: document.getElementById('prop-image').value,
+        lat: parseFloat(document.getElementById('prop-lat').value) || null,
+        lng: parseFloat(document.getElementById('prop-lng').value) || null,
         active: document.getElementById('prop-active').value,
         pin: PIN
     };
+   
     const existingId = document.getElementById('prop-id').value;
     const action = existingId ? 'update' : 'create';
-    if (action === 'update') data.id = existingId;
-
+  
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -233,8 +243,7 @@ async function handleSubmit(e) {
 
 async function editObject(id) {
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
-        const data = await response.json();
+        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);        const data = await response.json();
         if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
         const headers = data[0];
         const rows = data.slice(1);
@@ -243,13 +252,13 @@ async function editObject(id) {
             const rowObj = {};
             headers.forEach(function(header, i) { rowObj[header] = row[i]; });
             if (rowObj.id === id) Object.assign(obj, rowObj);
-        });        if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
+        });
+        if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
 
         document.getElementById('main-screen').style.display = 'none';
         document.getElementById('form-screen').style.display = 'block';
         document.getElementById('form-title').textContent = 'Редактировать';
-        document.getElementById('prop-id').value = obj.id;
-        document.getElementById('prop-id-input').value = obj.id;
+        document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
         document.getElementById('prop-metro').value = obj.metro || '';
@@ -258,11 +267,21 @@ async function editObject(id) {
         document.getElementById('prop-rooms').value = obj.rooms || '';
         document.getElementById('prop-area-min').value = obj.area_min || '';
         document.getElementById('prop-area-max').value = obj.area_max || '';
-        document.getElementById('prop-completion').value = obj.completion_soonest || '';
+        document.getElementById('prop-price-per-sqm').value = obj.price_per_sqm || '';
+        document.getElementById('prop-completion-soonest').value = obj.completion_soonest || '';
+        document.getElementById('prop-completion-all').value = obj.completion_all || '';
         document.getElementById('prop-status').value = obj.status || 'Строится';
         document.getElementById('prop-class').value = obj.class || 'Комфорт';
+        document.getElementById('prop-finishing').value = obj.finishing || '';
+        document.getElementById('prop-description').value = obj.description || '';
+        document.getElementById('prop-image-main').value = obj.image_main || '';
+        document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
+        document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
+        document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';
+        document.getElementById('prop-features').value = obj.features || '';
         document.getElementById('prop-address').value = obj.address || '';
-        document.getElementById('prop-image').value = obj.image_main || '';
+        document.getElementById('prop-lat').value = obj.lat || '';
+        document.getElementById('prop-lng').value = obj.lng || '';
         document.getElementById('prop-active').value = obj.active || 'TRUE';
     } catch (error) { alert('Ошибка: ' + error.message); }
 }
@@ -273,8 +292,7 @@ async function deleteObject(id) {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
-        });
+            body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })        });
         const result = await response.json();
         if (result.success) { alert('Удалено!'); loadObjects(); }
         else { alert('Ошибка: ' + result.error); }
@@ -292,6 +310,7 @@ function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
     if (SCRIPT_URL) init();
 }
+
 function saveSettings() {
     SCRIPT_URL = document.getElementById('script-url').value;
     localStorage.setItem('script_url', SCRIPT_URL);
