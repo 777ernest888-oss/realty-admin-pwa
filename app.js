@@ -7,7 +7,49 @@ document.addEventListener('DOMContentLoaded', function() {
     init();
 });
 
+// Функция для получения параметра из URL
+function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+}
+
+// Функция для очистки URL от параметров
+function cleanUrl() {
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+// Функция для защиты от XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const str = String(text);
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+}
+
+// Функция выхода (очистка localStorage)
+function logout() {
+    if (confirm('Выйти из приложения? URL скрипта и PIN будут удалены.')) {
+        localStorage.removeItem('script_url');
+        localStorage.removeItem('pin');
+        SCRIPT_URL = '';
+        PIN = '';
+        location.reload();
+    }
+}
+
 async function init() {
+    // Проверяем параметр ?script= в URL
+    const scriptParam = getUrlParameter('script');
+    if (scriptParam) {
+        SCRIPT_URL = scriptParam;
+        localStorage.setItem('script_url', SCRIPT_URL);        cleanUrl(); // Очищаем URL от параметра
+    }
+   
     if (!SCRIPT_URL) {
         openSettings();
         return;
@@ -31,7 +73,7 @@ async function checkPinAndLoad(msg) {
         try {
             const res = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
             const data = await res.json();
-           
+          
             if (data.unauthorized || data.error === 'Неверный PIN') {
                 PIN = '';
                 localStorage.removeItem('pin');
@@ -47,14 +89,14 @@ async function checkPinAndLoad(msg) {
         }
     }
 }
+
 function showPinScreen(isSetup, msg) {
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
     document.getElementById('pin-screen').style.display = 'block';
 
     isSetupMode = isSetup;
-    document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';
-    document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
+    document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';    document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
 
     const msgEl = document.getElementById('pin-message');
     if (msg) { msgEl.textContent = msg; msgEl.style.display = 'block'; }
@@ -64,6 +106,12 @@ function showPinScreen(isSetup, msg) {
 async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
     if (!inputPin) return;
+
+    // Проверка минимальной длины PIN (6 цифр)
+    if (inputPin.length < 6) {
+        alert('PIN должен содержать минимум 6 цифр');
+        return;
+    }
 
     const btn = document.getElementById('pin-btn');
     btn.textContent = 'Загрузка...';
@@ -77,12 +125,12 @@ async function submitPin() {
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
-           
+          
             // При no-cors мы не можем прочитать ответ, но запрос отправлен
             // Проверяем, установился ли PIN, сделав GET запрос
             const checkRes = await fetch(SCRIPT_URL);
             const checkData = await checkRes.json();
-           
+          
             if (!checkData.needs_setup) {
                 PIN = inputPin;
                 localStorage.setItem('pin', PIN);
@@ -97,9 +145,8 @@ async function submitPin() {
     } else {
         PIN = inputPin;
         localStorage.setItem('pin', PIN);
-        await checkPinAndLoad();
-    }
-   
+        await checkPinAndLoad();    }
+  
     btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
     btn.disabled = false;
 }
@@ -113,7 +160,8 @@ function showMainScreen() {
 async function loadObjects() {
     const list = document.getElementById('objects-list');
     list.innerHTML = 'Загрузка...';
-    try {        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+    try {
+        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
         const data = await response.json();
         if (data.error && !Array.isArray(data)) {
             list.innerHTML = '<p style="color:red;">' + data.error + '</p>';
@@ -134,20 +182,19 @@ function renderObjects(data) {
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = row[i]; });
         return '<div class="object-card">' +
-            '<h3>' + (obj.name || 'Без названия') + '</h3>' +
-            '<p class="price">' + (obj.price_from || '?') + ' - ' + (obj.price_to || '?') + ' млн руб</p>' +
-            '<p>📍 ' + (obj.address || 'Адрес не указан') + '</p>' +
-            '<p>🏗 ' + (obj.status || 'Статус неизвестен') + '</p>' +
+            '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
+            '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
+            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
-                '<button onclick="editObject(\'' + obj.id + '\')" class="btn btn-primary">Редактировать</button>' +
-                '<button onclick="deleteObject(\'' + obj.id + '\')" class="btn btn-secondary">Удалить</button>' +
+                '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
+                '<button onclick="deleteObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-secondary">Удалить</button>' +
             '</div></div>';
     }).join('');
 }
 
 function openForm() {
-    document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('form-screen').style.display = 'block';
+    document.getElementById('main-screen').style.display = 'none';    document.getElementById('form-screen').style.display = 'block';
     document.getElementById('form-title').textContent = 'Новый объект';
     document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
@@ -162,7 +209,8 @@ async function handleSubmit(e) {
     e.preventDefault();
     const data = {
         id: document.getElementById('prop-id-input').value,
-        name: document.getElementById('prop-name').value,        district: document.getElementById('prop-district').value,
+        name: document.getElementById('prop-name').value,
+        district: document.getElementById('prop-district').value,
         metro: document.getElementById('prop-metro').value,
         price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
         price_to: parseFloat(document.getElementById('prop-price-to').value) || null,
@@ -180,7 +228,7 @@ async function handleSubmit(e) {
     const existingId = document.getElementById('prop-id').value;
     const action = existingId ? 'update' : 'create';
     if (action === 'update') data.id = existingId;
-   
+  
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -195,8 +243,7 @@ async function handleSubmit(e) {
 
 async function editObject(id) {
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
-        const data = await response.json();
+        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);        const data = await response.json();
         const headers = data[0];
         const rows = data.slice(1);
         const obj = {};
@@ -206,12 +253,13 @@ async function editObject(id) {
             if (rowObj.id === id) Object.assign(obj, rowObj);
         });
         if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
-       
+      
         document.getElementById('main-screen').style.display = 'none';
         document.getElementById('form-screen').style.display = 'block';
         document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id;
-        document.getElementById('prop-id-input').value = obj.id;        document.getElementById('prop-name').value = obj.name || '';
+        document.getElementById('prop-id-input').value = obj.id;
+        document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
         document.getElementById('prop-metro').value = obj.metro || '';
         document.getElementById('prop-price-from').value = obj.price_from || '';
@@ -244,8 +292,7 @@ async function deleteObject(id) {
 
 function openSettings() {
     document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('pin-screen').style.display = 'none';
-    document.getElementById('settings-screen').style.display = 'block';
+    document.getElementById('pin-screen').style.display = 'none';    document.getElementById('settings-screen').style.display = 'block';
     document.getElementById('script-url').value = SCRIPT_URL;
 }
 
