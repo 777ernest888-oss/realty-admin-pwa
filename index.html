@@ -21,7 +21,6 @@
         </div>
     </div>
 
-    <!-- Экран настроек URL -->
     <div id="settings-screen" class="screen" style="display:none;">
         <h2>Настройки</h2>
         <div class="form-group">
@@ -33,7 +32,6 @@
         <button onclick="logout()" class="btn btn-secondary" style="margin-top:20px; background:#e74c3c; color:white;">🚪 Выйти из аккаунта</button>
     </div>
 
-    <!-- Экран PIN-кода -->
     <div id="pin-screen" class="screen" style="display:none;">
         <h2 id="pin-title">Введите PIN</h2>
         <p id="pin-message" style="color:red; text-align:center; display:none;"></p>
@@ -44,31 +42,38 @@
         <button onclick="submitPin()" class="btn btn-primary" id="pin-btn">Войти</button>
     </div>
 
-    <!-- Главный экран -->
     <div id="main-screen" class="screen" style="display:none;">
         <button onclick="openForm()" class="btn btn-primary add-btn">+ Добавить объект</button>
         <div id="objects-list" class="loading">Загрузка...</div>
     </div>
 
-    <!-- Форма объекта -->
     <div id="form-screen" class="screen" style="display:none;">
         <h2 id="form-title">Новый объект</h2>
         <form id="property-form">
             <input type="hidden" id="prop-id">
-            <div class="form-group"><label>ID объекта *</label><input type="text" id="prop-id-input" required placeholder="spb-001"></div>
             <div class="form-group"><label>Название ЖК *</label><input type="text" id="prop-name" required placeholder="ЖК Солнечный"></div>
             <div class="form-group"><label>Район</label><input type="text" id="prop-district" placeholder="Приморский"></div>
             <div class="form-group"><label>Метро</label><input type="text" id="prop-metro" placeholder="Комендантский проспект"></div>
             <div class="form-group"><label>Цена от (млн руб)</label><input type="number" step="0.1" id="prop-price-from" placeholder="5.2"></div>
             <div class="form-group"><label>Цена до (млн руб)</label><input type="number" step="0.1" id="prop-price-to" placeholder="15.8"></div>
+            <div class="form-group"><label>Цена за м² (руб)</label><input type="number" id="prop-price-per-sqm" placeholder="632035"></div>
             <div class="form-group"><label>Комнаты</label><input type="text" id="prop-rooms" placeholder="студия, 1, 2, 3"></div>
             <div class="form-group"><label>Площадь мин (м²)</label><input type="number" step="0.1" id="prop-area-min" placeholder="23.1"></div>
             <div class="form-group"><label>Площадь макс (м²)</label><input type="number" step="0.1" id="prop-area-max" placeholder="120.8"></div>
-            <div class="form-group"><label>Срок сдачи</label><input type="text" id="prop-completion" placeholder="II кв. 2027"></div>
+            <div class="form-group"><label>Срок сдачи (первый)</label><input type="text" id="prop-completion-soonest" placeholder="II кв. 2027"></div>
+            <div class="form-group"><label>Срок сдачи (весь)</label><input type="text" id="prop-completion-all" placeholder="IV кв. 2030"></div>
             <div class="form-group"><label>Статус</label><select id="prop-status"><option value="Строится">Строится</option><option value="Сдан">Сдан</option><option value="Частично сдан">Частично сдан</option></select></div>
             <div class="form-group"><label>Класс</label><select id="prop-class"><option value="Комфорт">Комфорт</option><option value="Бизнес">Бизнес</option><option value="Премиум">Премиум</option></select></div>
+            <div class="form-group"><label>Отделка</label><select id="prop-finishing"><option value="Без отделки">Без отделки</option><option value="Черновая">Черновая</option><option value="Предчистовая">Предчистовая</option><option value="Чистовая">Чистовая</option></select></div>
+            <div class="form-group"><label>Описание</label><textarea id="prop-description" rows="4" placeholder="Описание проекта..."></textarea></div>
+            <div class="form-group"><label>Главное фото (URL)</label><input type="url" id="prop-image-main" placeholder="https://.../main.jpg"></div>
+            <div class="form-group"><label>Галерея (URL через запятую)</label><textarea id="prop-images-gallery" rows="2" placeholder="https://.../1.jpg, https://.../2.jpg"></textarea></div>
+            <div class="form-group"><label>Планировки (текст)</label><input type="text" id="prop-floor-plans-text" placeholder="1-комн, 2-комн, 3-комн"></div>
+            <div class="form-group"><label>Планировки (URL через запятую)</label><textarea id="prop-floor-plans-images" rows="2" placeholder="https://.../plan-1.jpg, https://.../plan-2.jpg"></textarea></div>
+            <div class="form-group"><label>Особенности</label><input type="text" id="prop-features" placeholder="Паркинг, Фитнес, Умный дом"></div>
             <div class="form-group"><label>Адрес</label><input type="text" id="prop-address" placeholder="Санкт-Петербург, ул. Примерная, 1"></div>
-            <div class="form-group"><label>URL главного фото</label><input type="url" id="prop-image" placeholder="https://github.com/.../photo.jpg"></div>
+            <div class="form-group"><label>Широта (lat)</label><input type="number" step="0.000001" id="prop-lat" placeholder="59.924528"></div>
+            <div class="form-group"><label>Долгота (lng)</label><input type="number" step="0.000001" id="prop-lng" placeholder="30.265167"></div>
             <div class="form-group"><label>Активен</label><select id="prop-active"><option value="TRUE">Да</option><option value="FALSE">Нет</option></select></div>
             <button type="submit" class="btn btn-primary">Сохранить</button>
             <button type="button" onclick="closeForm()" class="btn btn-secondary">Отмена</button>
