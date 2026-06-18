@@ -65,26 +65,43 @@ async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
     if (!inputPin) return;
 
+    const btn = document.getElementById('pin-btn');
+    btn.textContent = 'Загрузка...';
+    btn.disabled = true;
+
     if (isSetupMode) {
         try {
             const res = await fetch(SCRIPT_URL, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                mode: 'no-cors',
+                headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
-            const data = await res.json();
-            if (data.success) {
+           
+            // При no-cors мы не можем прочитать ответ, но запрос отправлен
+            // Проверяем, установился ли PIN, сделав GET запрос
+            const checkRes = await fetch(SCRIPT_URL);
+            const checkData = await checkRes.json();
+           
+            if (!checkData.needs_setup) {
                 PIN = inputPin;
                 localStorage.setItem('pin', PIN);
                 showMainScreen();
                 loadObjects();
+            } else {
+                alert('PIN не установлен. Попробуйте ещё раз.');
             }
-        } catch(e) { alert('Ошибка установки PIN'); }
+        } catch(e) {
+            alert('Ошибка установки PIN: ' + e.message);
+        }
     } else {
         PIN = inputPin;
         localStorage.setItem('pin', PIN);
         await checkPinAndLoad();
     }
+   
+    btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
+    btn.disabled = false;
 }
 
 function showMainScreen() {
