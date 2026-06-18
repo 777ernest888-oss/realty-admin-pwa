@@ -122,3 +122,22 @@ body {
     padding: 40px;
     color: #999;
 }
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.logout-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.logout-btn:hover {
+    background: #c0392b;
+}
