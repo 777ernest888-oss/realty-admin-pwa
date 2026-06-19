@@ -2,7 +2,7 @@ let SCRIPT_URL = localStorage.getItem('script_url') || '';
 let PIN = localStorage.getItem('pin') || '';
 let isSetupMode = false;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('property-form').addEventListener('submit', handleSubmit);
     init();
 });
@@ -56,6 +56,9 @@ async function checkPinAndLoad(msg) {
     if (!PIN) {
         try {
             const res = await fetch(SCRIPT_URL);
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
             const data = await res.json();
             if (data.needs_setup) showPinScreen(true);
             else showPinScreen(false, msg);
@@ -65,6 +68,9 @@ async function checkPinAndLoad(msg) {
     } else {
         try {
             const res = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
             const data = await res.json();
 
             if (data.unauthorized || data.error === 'Неверный PIN') {
@@ -91,16 +97,17 @@ function showPinScreen(isSetup, msg) {
     isSetupMode = isSetup;
     document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';
     document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
-
     const msgEl = document.getElementById('pin-message');
     if (msg) { msgEl.textContent = msg; msgEl.style.display = 'block'; }
     else { msgEl.style.display = 'none'; }
 }
+
 async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
     if (!inputPin) return;
 
-    if (inputPin.length < 6) {
+    // Проверка: только цифры и минимум 6
+    if (!/^\d{6,}$/.test(inputPin)) {
         alert('PIN должен содержать минимум 6 цифр');
         return;
     }
@@ -118,21 +125,27 @@ async function submitPin() {
             });
            
             setTimeout(async function() {
-                const checkRes = await fetch(SCRIPT_URL);
-                const checkData = await checkRes.json();
-               
-                if (!checkData.needs_setup) {
-                    PIN = inputPin;
-                    localStorage.setItem('pin', PIN);
-                    showMainScreen();
-                    loadObjects();
-                } else {
-                    alert('PIN не установлен. Попробуйте ещё раз.');
+                try {
+                    const checkRes = await fetch(SCRIPT_URL);
+                    if (!checkRes.ok) {
+                        throw new Error(`HTTP error! status: ${checkRes.status}`);
+                    }
+                    const checkData = await checkRes.json();
+                   
+                    if (!checkData.needs_setup) {
+                        PIN = inputPin;
+                        localStorage.setItem('pin', PIN);
+                        showMainScreen();
+                        loadObjects();
+                    } else {
+                        alert('PIN не установлен. Попробуйте ещё раз.');
+                    }
+                } catch (e) {
+                    alert('Ошибка проверки PIN: ' + e.message);
                 }
                 btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
                 btn.disabled = false;
-            }, 1000);
-           
+            }, 1000);           
             return;
         } catch(e) {
             alert('Ошибка установки PIN: ' + e.message);
@@ -146,6 +159,7 @@ async function submitPin() {
     btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
     btn.disabled = false;
 }
+
 function showMainScreen() {
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
@@ -157,6 +171,9 @@ async function loadObjects() {
     list.innerHTML = 'Загрузка...';
     try {
         const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         if (data.error && !Array.isArray(data)) {
             list.innerHTML = '<p style="color:red;">' + data.error + '</p>';
@@ -170,9 +187,14 @@ async function loadObjects() {
 
 function renderObjects(data) {
     const list = document.getElementById('objects-list');
-    if (data.length <= 1) { list.innerHTML = '<p>Нет объектов</p>'; return; }
+    // Проверка: массив ли это и есть ли данные
+    if (!Array.isArray(data) || data.length <= 1) {
+        list.innerHTML = '<p>Нет объектов</p>';
+        return;
+    }
+   
     const headers = data[0];
-    const rows = data.slice(1);
+    const rows = data.slice(1);   
     list.innerHTML = rows.map(function(row) {
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = row[i]; });
@@ -195,6 +217,7 @@ function openForm() {
     document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
 }
+
 function closeForm() {
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
@@ -220,8 +243,7 @@ async function handleSubmit(e) {
    
     if (!imageMain) {
         alert('Поле "Главное фото (URL)" обязательно для заполнения');
-        return;
-    }
+        return;    }
    
     const data = {
         id: document.getElementById('prop-id').value,
@@ -243,7 +265,8 @@ async function handleSubmit(e) {
         image_main: imageMain,
         images_gallery: document.getElementById('prop-images-gallery').value,
         floor_plans_text: document.getElementById('prop-floor-plans-text').value,
-        floor_plans_images: document.getElementById('prop-floor-plans-images').value,        features: document.getElementById('prop-features').value,
+        floor_plans_images: document.getElementById('prop-floor-plans-images').value,
+        features: document.getElementById('prop-features').value,
         address: address,
         lat: parseFloat(document.getElementById('prop-lat').value) || null,
         lng: parseFloat(document.getElementById('prop-lng').value) || null,
@@ -261,12 +284,15 @@ async function handleSubmit(e) {
             body: JSON.stringify({ action: action, data: data })
         });
        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+       
         const result = await response.json();
        
         if (result.success) {
             alert('Объект успешно сохранён!');
-            closeForm();
-            loadObjects();
+            closeForm();            loadObjects();
         } else {
             alert('Ошибка: ' + result.error);
         }
@@ -279,20 +305,30 @@ async function handleSubmit(e) {
 async function editObject(id) {
     try {
         const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
+       
         const headers = data[0];
         const rows = data.slice(1);
-        const obj = {};
-        rows.forEach(function(row) {
+       
+        // Используем find вместо forEach (быстрее)
+        const foundRow = rows.find(function(row) {
             const rowObj = {};
             headers.forEach(function(header, i) { rowObj[header] = row[i]; });
-            if (rowObj.id === id) Object.assign(obj, rowObj);
+            return rowObj.id === id;
         });
-        if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
+       
+        if (!foundRow) { alert('Объект не найден'); return; }
+       
+        const obj = {};
+        headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
 
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';
+        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -305,8 +341,7 @@ async function editObject(id) {
         document.getElementById('prop-price-per-sqm').value = obj.price_per_sqm || '';
         document.getElementById('prop-completion-soonest').value = obj.completion_soonest || '';
         document.getElementById('prop-completion-all').value = obj.completion_all || '';
-        document.getElementById('prop-status').value = obj.status || 'Строится';
-        document.getElementById('prop-class').value = obj.class || 'Комфорт';
+        document.getElementById('prop-status').value = obj.status || 'Строится';        document.getElementById('prop-class').value = obj.class || 'Комфорт';
         document.getElementById('prop-finishing').value = obj.finishing || '';
         document.getElementById('prop-description').value = obj.description || '';
         document.getElementById('prop-image-main').value = obj.image_main || '';
@@ -329,6 +364,11 @@ async function deleteObject(id) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
         });
+       
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+       
         const result = await response.json();
         if (result.success) {
             alert('Объект удалён!');
@@ -341,7 +381,8 @@ async function deleteObject(id) {
     }
 }
 
-function openSettings() {    document.getElementById('main-screen').style.display = 'none';
+function openSettings() {
+    document.getElementById('main-screen').style.display = 'none';
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'block';
     document.getElementById('script-url').value = SCRIPT_URL;
@@ -349,8 +390,7 @@ function openSettings() {    document.getElementById('main-screen').style.displa
 
 function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
-    if (SCRIPT_URL) init();
-}
+    if (SCRIPT_URL) init();}
 
 function saveSettings() {
     SCRIPT_URL = document.getElementById('script-url').value;
