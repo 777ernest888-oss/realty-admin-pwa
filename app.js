@@ -111,15 +111,12 @@ async function submitPin() {
 
     if (isSetupMode) {
         try {
-            // Отправляем как text/plain для обхода CORS
             await fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: {'Content-Type': 'text/plain;charset=utf-8'},
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
            
-            // Ждём немного и проверяем
             setTimeout(async function() {
                 const checkRes = await fetch(SCRIPT_URL);
                 const checkData = await checkRes.json();
@@ -145,10 +142,10 @@ async function submitPin() {
         localStorage.setItem('pin', PIN);
         await checkPinAndLoad();
     }
+
     btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
     btn.disabled = false;
 }
-
 function showMainScreen() {
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
@@ -194,10 +191,10 @@ function renderObjects(data) {
 function openForm() {
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('form-screen').style.display = 'block';
-    document.getElementById('form-title').textContent = 'Новый объект';    document.getElementById('property-form').reset();
+    document.getElementById('form-title').textContent = 'Новый объект';
+    document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
 }
-
 function closeForm() {
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
@@ -205,9 +202,30 @@ function closeForm() {
 
 async function handleSubmit(e) {
     e.preventDefault();
+   
+    // Проверка обязательных полей: name, address, image_main
+    const name = document.getElementById('prop-name').value.trim();
+    const address = document.getElementById('prop-address').value.trim();
+    const imageMain = document.getElementById('prop-image-main').value.trim();
+   
+    if (!name) {
+        alert('Поле "Название ЖК" обязательно для заполнения');
+        return;
+    }
+   
+    if (!address) {
+        alert('Поле "Адрес" обязательно для заполнения');
+        return;
+    }
+   
+    if (!imageMain) {
+        alert('Поле "Главное фото (URL)" обязательно для заполнения');
+        return;
+    }
+   
     const data = {
         id: document.getElementById('prop-id').value,
-        name: document.getElementById('prop-name').value,
+        name: name,
         district: document.getElementById('prop-district').value,
         metro: document.getElementById('prop-metro').value,
         price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
@@ -222,12 +240,11 @@ async function handleSubmit(e) {
         class: document.getElementById('prop-class').value,
         finishing: document.getElementById('prop-finishing').value,
         description: document.getElementById('prop-description').value,
-        image_main: document.getElementById('prop-image-main').value,
+        image_main: imageMain,
         images_gallery: document.getElementById('prop-images-gallery').value,
         floor_plans_text: document.getElementById('prop-floor-plans-text').value,
-        floor_plans_images: document.getElementById('prop-floor-plans-images').value,
-        features: document.getElementById('prop-features').value,
-        address: document.getElementById('prop-address').value,
+        floor_plans_images: document.getElementById('prop-floor-plans-images').value,        features: document.getElementById('prop-features').value,
+        address: address,
         lat: parseFloat(document.getElementById('prop-lat').value) || null,
         lng: parseFloat(document.getElementById('prop-lng').value) || null,
         active: document.getElementById('prop-active').value,
@@ -238,20 +255,24 @@ async function handleSubmit(e) {
     const action = existingId ? 'update' : 'create';
   
     try {
-        // ОТПРАВЛЯЕМ КАК TEXT/PLAIN ДЛЯ ОБОЙТИ CORS
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: {'Content-Type': 'text/plain;charset=utf-8'},
-            body: JSON.stringify({ action: action, data: data })        });
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: action, data: data })
+        });
        
-        // При no-cors мы не можем прочитать ответ, но предполагаем успех
-        alert('Сохранено!');
-        closeForm();
-        loadObjects();
+        const result = await response.json();
+       
+        if (result.success) {
+            alert('Объект успешно сохранён!');
+            closeForm();
+            loadObjects();
+        } else {
+            alert('Ошибка: ' + result.error);
+        }
        
     } catch (error) {
-        alert('Ошибка: ' + error.message);
+        alert('Ошибка сети: ' + error.message);
     }
 }
 
@@ -271,8 +292,7 @@ async function editObject(id) {
         if (Object.keys(obj).length === 0) { alert('Не найдено'); return; }
 
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';
-        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -292,7 +312,8 @@ async function editObject(id) {
         document.getElementById('prop-image-main').value = obj.image_main || '';
         document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
         document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
-        document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';        document.getElementById('prop-features').value = obj.features || '';
+        document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';
+        document.getElementById('prop-features').value = obj.features || '';
         document.getElementById('prop-address').value = obj.address || '';
         document.getElementById('prop-lat').value = obj.lat || '';
         document.getElementById('prop-lng').value = obj.lng || '';
@@ -303,19 +324,24 @@ async function editObject(id) {
 async function deleteObject(id) {
     if (!confirm('Удалить объект?')) return;
     try {
-        await fetch(SCRIPT_URL, {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: {'Content-Type': 'text/plain;charset=utf-8'},
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
         });
-        alert('Удалено!');
-        loadObjects();
-    } catch (error) { alert('Ошибка: ' + error.message); }
+        const result = await response.json();
+        if (result.success) {
+            alert('Объект удалён!');
+            loadObjects();
+        } else {
+            alert('Ошибка: ' + result.error);
+        }
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
 }
 
-function openSettings() {
-    document.getElementById('main-screen').style.display = 'none';
+function openSettings() {    document.getElementById('main-screen').style.display = 'none';
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'block';
     document.getElementById('script-url').value = SCRIPT_URL;
