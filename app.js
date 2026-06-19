@@ -1,6 +1,11 @@
 let SCRIPT_URL = localStorage.getItem('script_url') || '';
 let PIN = localStorage.getItem('pin') || '';
 let isSetupMode = false;
+let uploadedImages = {
+    main: null,
+    gallery: [],
+    floorPlans: []
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('property-form').addEventListener('submit', handleSubmit);
@@ -42,12 +47,12 @@ async function init() {
     const scriptParam = getUrlParameter('script');
     if (scriptParam) {
         SCRIPT_URL = scriptParam;
-        localStorage.setItem('script_url', SCRIPT_URL);
-        cleanUrl();
+        localStorage.setItem('script_url', SCRIPT_URL);        cleanUrl();
     }
 
     if (!SCRIPT_URL) {
-        openSettings();        return;
+        openSettings();
+        return;
     }
     await checkPinAndLoad();
 }
@@ -91,12 +96,12 @@ async function checkPinAndLoad(msg) {
 
 function showPinScreen(isSetup, msg) {
     document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('settings-screen').style.display = 'none';
-    document.getElementById('pin-screen').style.display = 'block';
+    document.getElementById('settings-screen').style.display = 'none';    document.getElementById('pin-screen').style.display = 'block';
 
     isSetupMode = isSetup;
     document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';
     document.getElementById('pin-btn').textContent = isSetup ? 'Сохранить' : 'Войти';
+
     const msgEl = document.getElementById('pin-message');
     if (msg) { msgEl.textContent = msg; msgEl.style.display = 'block'; }
     else { msgEl.style.display = 'none'; }
@@ -140,12 +145,12 @@ async function submitPin() {
                     } else {
                         alert('PIN не установлен. Попробуйте ещё раз.');
                     }
-                } catch (e) {
-                    alert('Ошибка проверки PIN: ' + e.message);
+                } catch (e) {                    alert('Ошибка проверки PIN: ' + e.message);
                 }
                 btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
                 btn.disabled = false;
-            }, 2000);           
+            }, 2000);
+           
             return;
         } catch(e) {
             alert('Ошибка установки PIN: ' + e.message);
@@ -189,18 +194,18 @@ function renderObjects(data) {
     const list = document.getElementById('objects-list');
     if (!Array.isArray(data) || data.length <= 1) {
         list.innerHTML = '<p>Нет объектов</p>';
-        return;
-    }
+        return;    }
    
     const headers = data[0];
     const rows = data.slice(1);
-        list.innerHTML = rows.map(function(row) {
+   
+    list.innerHTML = rows.map(function(row) {
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = row[i]; });
         return '<div class="object-card">' +
             '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
             '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
-            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<p> ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
                 '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
@@ -215,6 +220,10 @@ function openForm() {
     document.getElementById('form-title').textContent = 'Новый объект';
     document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
+    uploadedImages = { main: null, gallery: [], floorPlans: [] };
+    document.getElementById('image-main-preview').style.display = 'none';
+    document.getElementById('image-gallery-preview').style.display = 'none';
+    document.getElementById('image-floor-plans-preview').style.display = 'none';
 }
 
 function closeForm() {
@@ -222,15 +231,118 @@ function closeForm() {
     document.getElementById('main-screen').style.display = 'block';
 }
 
+async function handleImageSelect(event, type) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Загрузка фото...';
+    btn.style.cssText = 'background:#f39c12; color:white; border:none; padding:10px; border-radius:5px; margin-top:10px;';
+    event.target.parentNode.appendChild(btn);
+
+    try {
+        if (type === 'main') {
+            const file = files[0];
+            const url = await uploadImageToDrive(file);            uploadedImages.main = url;
+            document.getElementById('prop-image-main').value = url;
+           
+            const preview = document.getElementById('image-main-preview');
+            const previewImg = document.getElementById('image-main-preview-img');
+            previewImg.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+           
+        } else if (type === 'gallery') {
+            const urls = [];
+            for (let i = 0; i < files.length; i++) {
+                const url = await uploadImageToDrive(files[i]);
+                urls.push(url);
+            }
+            uploadedImages.gallery = urls;
+            document.getElementById('prop-images-gallery').value = urls.join(',');
+           
+            const container = document.getElementById('gallery-images-container');
+            container.innerHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(files[i]);
+                img.style.cssText = 'width:80px; height:80px; object-fit:cover; border-radius:5px;';
+                container.appendChild(img);
+            }
+            document.getElementById('image-gallery-preview').style.display = 'block';
+           
+        } else if (type === 'floor-plans') {
+            const urls = [];
+            for (let i = 0; i < files.length; i++) {
+                const url = await uploadImageToDrive(files[i]);
+                urls.push(url);
+            }
+            uploadedImages.floorPlans = urls;
+            document.getElementById('prop-floor-plans-images').value = urls.join(',');
+           
+            const container = document.getElementById('floor-plans-images-container');
+            container.innerHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(files[i]);
+                img.style.cssText = 'width:80px; height:80px; object-fit:cover; border-radius:5px;';
+                container.appendChild(img);
+            }
+            document.getElementById('image-floor-plans-preview').style.display = 'block';
+        }
+       
+    } catch (error) {
+        alert('Ошибка загрузки фото: ' + error.message);
+    } finally {        btn.remove();
+    }
+}
+
+async function uploadImageToDrive(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const base64Data = e.target.result;
+               
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        action: 'upload_image',
+                        data: {
+                            image: base64Data,
+                            fileName: file.name,
+                            pin: PIN
+                        }
+                    })
+                });
+               
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+               
+                const result = await response.json();
+               
+                if (result.success) {
+                    resolve(result.url);
+                } else {
+                    reject(new Error(result.error));
+                }
+               
+            } catch (error) {
+                reject(error);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 async function handleSubmit(e) {
     e.preventDefault();
    
-    // Получаем значения полей
     const name = document.getElementById('prop-name').value.trim();
-    const address = document.getElementById('prop-address').value.trim();
-    const imageMain = document.getElementById('prop-image-main').value.trim();
+    const address = document.getElementById('prop-address').value.trim();    const imageMain = document.getElementById('prop-image-main').value.trim();
    
-    // Проверяем ВСЕ 3 обязательных поля
     if (!name) {
         alert('❌ Поле "Название ЖК" обязательно для заполнения!');
         return;
@@ -242,10 +354,10 @@ async function handleSubmit(e) {
     }
    
     if (!imageMain) {
-        alert('❌ Поле "Главное фото (URL)" обязательно для заполнения!');
-        return;    }
+        alert('❌ Поле "Главное фото" обязательно для заполнения! Выберите фото из галереи.');
+        return;
+    }
    
-    // Формируем данные для отправки
     const data = {
         id: document.getElementById('prop-id').value,
         name: name,
@@ -278,8 +390,7 @@ async function handleSubmit(e) {
     const existingId = document.getElementById('prop-id').value;
     const action = existingId ? 'update' : 'create';
   
-    try {
-        const response = await fetch(SCRIPT_URL, {
+    try {        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: action, data: data })
@@ -292,7 +403,8 @@ async function handleSubmit(e) {
         const result = await response.json();
        
         if (result.success) {
-            alert('✅ Объект успешно сохранён!');            closeForm();
+            alert('✅ Объект успешно сохранён!');
+            closeForm();
             loadObjects();
         } else {
             alert('❌ Ошибка: ' + result.error);
@@ -327,8 +439,7 @@ async function editObject(id) {
         headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
 
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';
-        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -341,7 +452,8 @@ async function editObject(id) {
         document.getElementById('prop-price-per-sqm').value = obj.price_per_sqm || '';
         document.getElementById('prop-completion-soonest').value = obj.completion_soonest || '';
         document.getElementById('prop-completion-all').value = obj.completion_all || '';
-        document.getElementById('prop-status').value = obj.status || 'Строится';        document.getElementById('prop-class').value = obj.class || 'Комфорт';
+        document.getElementById('prop-status').value = obj.status || 'Строится';
+        document.getElementById('prop-class').value = obj.class || 'Комфорт';
         document.getElementById('prop-finishing').value = obj.finishing || '';
         document.getElementById('prop-description').value = obj.description || '';
         document.getElementById('prop-image-main').value = obj.image_main || '';
@@ -376,8 +488,7 @@ async function deleteObject(id) {
         } else {
             alert('Ошибка: ' + result.error);
         }
-    } catch (error) {
-        alert('Ошибка: ' + error.message);
+    } catch (error) {         alert('Ошибка: ' + error.message);
     }
 }
 
@@ -390,7 +501,8 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
-    if (SCRIPT_URL) init();}
+    if (SCRIPT_URL) init();
+}
 
 function saveSettings() {
     SCRIPT_URL = document.getElementById('script-url').value;
