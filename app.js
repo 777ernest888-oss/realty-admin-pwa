@@ -200,7 +200,7 @@ function renderObjects(data) {
         return '<div class="object-card">' +
             '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
             '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
-            '<p> ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
                 '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
@@ -225,25 +225,28 @@ function closeForm() {
 async function handleSubmit(e) {
     e.preventDefault();
    
+    // Получаем значения полей
     const name = document.getElementById('prop-name').value.trim();
     const address = document.getElementById('prop-address').value.trim();
     const imageMain = document.getElementById('prop-image-main').value.trim();
    
+    // Проверяем ВСЕ 3 обязательных поля
     if (!name) {
-        alert('Поле "Название ЖК" обязательно для заполнения');
+        alert('❌ Поле "Название ЖК" обязательно для заполнения!');
         return;
     }
    
     if (!address) {
-        alert('Поле "Адрес" обязательно для заполнения');
+        alert('❌ Поле "Адрес" обязательно для заполнения!');
         return;
     }
    
     if (!imageMain) {
-        alert('Поле "Главное фото (URL)" обязательно для заполнения');
-        return;
-    }
-        const data = {
+        alert('❌ Поле "Главное фото (URL)" обязательно для заполнения!');
+        return;    }
+   
+    // Формируем данные для отправки
+    const data = {
         id: document.getElementById('prop-id').value,
         name: name,
         district: document.getElementById('prop-district').value,
@@ -289,14 +292,14 @@ async function handleSubmit(e) {
         const result = await response.json();
        
         if (result.success) {
-            alert('Объект успешно сохранён!');
-            closeForm();
+            alert('✅ Объект успешно сохранён!');            closeForm();
             loadObjects();
-        } else {            alert('Ошибка: ' + result.error);
+        } else {
+            alert('❌ Ошибка: ' + result.error);
         }
        
     } catch (error) {
-        alert('Ошибка сети: ' + error.message);
+        alert('❌ Ошибка сети: ' + error.message);
     }
 }
 
@@ -338,10 +341,10 @@ async function editObject(id) {
         document.getElementById('prop-price-per-sqm').value = obj.price_per_sqm || '';
         document.getElementById('prop-completion-soonest').value = obj.completion_soonest || '';
         document.getElementById('prop-completion-all').value = obj.completion_all || '';
-        document.getElementById('prop-status').value = obj.status || 'Строится';
-        document.getElementById('prop-class').value = obj.class || 'Комфорт';
+        document.getElementById('prop-status').value = obj.status || 'Строится';        document.getElementById('prop-class').value = obj.class || 'Комфорт';
         document.getElementById('prop-finishing').value = obj.finishing || '';
-        document.getElementById('prop-description').value = obj.description || '';        document.getElementById('prop-image-main').value = obj.image_main || '';
+        document.getElementById('prop-description').value = obj.description || '';
+        document.getElementById('prop-image-main').value = obj.image_main || '';
         document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
         document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
         document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';
@@ -387,10 +390,10 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
-    if (SCRIPT_URL) init();
-}
+    if (SCRIPT_URL) init();}
 
-function saveSettings() {    SCRIPT_URL = document.getElementById('script-url').value;
+function saveSettings() {
+    SCRIPT_URL = document.getElementById('script-url').value;
     localStorage.setItem('script_url', SCRIPT_URL);
     closeSettings();
 }
