@@ -106,7 +106,6 @@ async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
     if (!inputPin) return;
 
-    // Проверка: только цифры и минимум 6
     if (!/^\d{6,}$/.test(inputPin)) {
         alert('PIN должен содержать минимум 6 цифр');
         return;
@@ -120,7 +119,8 @@ async function submitPin() {
         try {
             await fetch(SCRIPT_URL, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                mode: 'no-cors',
+                headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
            
@@ -145,7 +145,7 @@ async function submitPin() {
                 }
                 btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
                 btn.disabled = false;
-            }, 1000);           
+            }, 2000);           
             return;
         } catch(e) {
             alert('Ошибка установки PIN: ' + e.message);
@@ -187,21 +187,20 @@ async function loadObjects() {
 
 function renderObjects(data) {
     const list = document.getElementById('objects-list');
-    // Проверка: массив ли это и есть ли данные
     if (!Array.isArray(data) || data.length <= 1) {
         list.innerHTML = '<p>Нет объектов</p>';
         return;
     }
    
     const headers = data[0];
-    const rows = data.slice(1);   
-    list.innerHTML = rows.map(function(row) {
+    const rows = data.slice(1);
+        list.innerHTML = rows.map(function(row) {
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = row[i]; });
         return '<div class="object-card">' +
             '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
             '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
-            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<p> ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
                 '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
@@ -226,7 +225,6 @@ function closeForm() {
 async function handleSubmit(e) {
     e.preventDefault();
    
-    // Проверка обязательных полей: name, address, image_main
     const name = document.getElementById('prop-name').value.trim();
     const address = document.getElementById('prop-address').value.trim();
     const imageMain = document.getElementById('prop-image-main').value.trim();
@@ -243,9 +241,9 @@ async function handleSubmit(e) {
    
     if (!imageMain) {
         alert('Поле "Главное фото (URL)" обязательно для заполнения');
-        return;    }
-   
-    const data = {
+        return;
+    }
+        const data = {
         id: document.getElementById('prop-id').value,
         name: name,
         district: document.getElementById('prop-district').value,
@@ -292,9 +290,9 @@ async function handleSubmit(e) {
        
         if (result.success) {
             alert('Объект успешно сохранён!');
-            closeForm();            loadObjects();
-        } else {
-            alert('Ошибка: ' + result.error);
+            closeForm();
+            loadObjects();
+        } else {            alert('Ошибка: ' + result.error);
         }
        
     } catch (error) {
@@ -314,7 +312,6 @@ async function editObject(id) {
         const headers = data[0];
         const rows = data.slice(1);
        
-        // Используем find вместо forEach (быстрее)
         const foundRow = rows.find(function(row) {
             const rowObj = {};
             headers.forEach(function(header, i) { rowObj[header] = row[i]; });
@@ -341,10 +338,10 @@ async function editObject(id) {
         document.getElementById('prop-price-per-sqm').value = obj.price_per_sqm || '';
         document.getElementById('prop-completion-soonest').value = obj.completion_soonest || '';
         document.getElementById('prop-completion-all').value = obj.completion_all || '';
-        document.getElementById('prop-status').value = obj.status || 'Строится';        document.getElementById('prop-class').value = obj.class || 'Комфорт';
+        document.getElementById('prop-status').value = obj.status || 'Строится';
+        document.getElementById('prop-class').value = obj.class || 'Комфорт';
         document.getElementById('prop-finishing').value = obj.finishing || '';
-        document.getElementById('prop-description').value = obj.description || '';
-        document.getElementById('prop-image-main').value = obj.image_main || '';
+        document.getElementById('prop-description').value = obj.description || '';        document.getElementById('prop-image-main').value = obj.image_main || '';
         document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
         document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
         document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';
@@ -390,10 +387,10 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settings-screen').style.display = 'none';
-    if (SCRIPT_URL) init();}
+    if (SCRIPT_URL) init();
+}
 
-function saveSettings() {
-    SCRIPT_URL = document.getElementById('script-url').value;
+function saveSettings() {    SCRIPT_URL = document.getElementById('script-url').value;
     localStorage.setItem('script_url', SCRIPT_URL);
     closeSettings();
 }
