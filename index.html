@@ -139,13 +139,23 @@
             </div>
            
             <div class="form-group">
-                <label>Главное фото (URL) *</label>
-                <input type="url" id="prop-image-main" required placeholder="https://.../main.jpg">
-            </div>
+                <label>Главное фото *</label>
+                <input type="file" id="prop-image-main-file" accept="image/*" capture="environment" onchange="handleImageSelect(event, 'main')">
+                <input type="hidden" id="prop-image-main">
+                <div id="image-main-preview" style="margin-top:10px; display:none;">
+                    <img id="image-main-preview-img" style="max-width:100%; border-radius:8px;">
+                    <p style="color:green; font-size:12px;">✅ Фото загружено</p>
+                </div>            </div>
            
             <div class="form-group">
-                <label>Галерея (URL через запятую)</label>
-                <textarea id="prop-images-gallery" rows="2" placeholder="https://.../1.jpg, https://.../2.jpg"></textarea>            </div>
+                <label>Галерея (выберите несколько фото)</label>
+                <input type="file" id="prop-images-gallery-file" accept="image/*" multiple onchange="handleImageSelect(event, 'gallery')">
+                <input type="hidden" id="prop-images-gallery">
+                <div id="image-gallery-preview" style="margin-top:10px; display:none;">
+                    <div id="gallery-images-container" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+                    <p style="color:green; font-size:12px;">✅ Фото загружены</p>
+                </div>
+            </div>
            
             <div class="form-group">
                 <label>Планировки (текст)</label>
@@ -153,8 +163,13 @@
             </div>
            
             <div class="form-group">
-                <label>Планировки (URL через запятую)</label>
-                <textarea id="prop-floor-plans-images" rows="2" placeholder="https://.../plan-1.jpg, https://.../plan-2.jpg"></textarea>
+                <label>Планировки (выберите фото)</label>
+                <input type="file" id="prop-floor-plans-file" accept="image/*" multiple onchange="handleImageSelect(event, 'floor-plans')">
+                <input type="hidden" id="prop-floor-plans-images">
+                <div id="image-floor-plans-preview" style="margin-top:10px; display:none;">
+                    <div id="floor-plans-images-container" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+                    <p style="color:green; font-size:12px;">✅ Фото загружены</p>
+                </div>
             </div>
            
             <div class="form-group">
@@ -179,8 +194,7 @@
            
             <div class="form-group">
                 <label>Активен</label>
-                <select id="prop-active">
-                    <option value="TRUE">Да</option>
+                <select id="prop-active">                    <option value="TRUE">Да</option>
                     <option value="FALSE">Нет</option>
                 </select>
             </div>
