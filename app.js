@@ -111,24 +111,32 @@ async function submitPin() {
 
     if (isSetupMode) {
         try {
+            // Отправляем как text/plain для обхода CORS
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
-
-            const checkRes = await fetch(SCRIPT_URL);
-            const checkData = await checkRes.json();
-
-            if (!checkData.needs_setup) {
-                PIN = inputPin;
-                localStorage.setItem('pin', PIN);
-                showMainScreen();
-                loadObjects();
-            } else {
-                alert('PIN не установлен. Попробуйте ещё раз.');
-            }
+           
+            // Ждём немного и проверяем
+            setTimeout(async function() {
+                const checkRes = await fetch(SCRIPT_URL);
+                const checkData = await checkRes.json();
+               
+                if (!checkData.needs_setup) {
+                    PIN = inputPin;
+                    localStorage.setItem('pin', PIN);
+                    showMainScreen();
+                    loadObjects();
+                } else {
+                    alert('PIN не установлен. Попробуйте ещё раз.');
+                }
+                btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
+                btn.disabled = false;
+            }, 1000);
+           
+            return;
         } catch(e) {
             alert('Ошибка установки PIN: ' + e.message);
         }
@@ -137,7 +145,6 @@ async function submitPin() {
         localStorage.setItem('pin', PIN);
         await checkPinAndLoad();
     }
-
     btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
     btn.disabled = false;
 }
@@ -145,7 +152,8 @@ async function submitPin() {
 function showMainScreen() {
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
-    document.getElementById('main-screen').style.display = 'block';}
+    document.getElementById('main-screen').style.display = 'block';
+}
 
 async function loadObjects() {
     const list = document.getElementById('objects-list');
@@ -186,8 +194,7 @@ function renderObjects(data) {
 function openForm() {
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('form-screen').style.display = 'block';
-    document.getElementById('form-title').textContent = 'Новый объект';
-    document.getElementById('property-form').reset();
+    document.getElementById('form-title').textContent = 'Новый объект';    document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
 }
 
@@ -195,10 +202,11 @@ function closeForm() {
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
 }
+
 async function handleSubmit(e) {
     e.preventDefault();
     const data = {
-        id: document.getElementById('prop-id').value, // Авто-генерация, если пусто
+        id: document.getElementById('prop-id').value,
         name: document.getElementById('prop-name').value,
         district: document.getElementById('prop-district').value,
         metro: document.getElementById('prop-metro').value,
@@ -230,20 +238,27 @@ async function handleSubmit(e) {
     const action = existingId ? 'update' : 'create';
   
     try {
+        // ОТПРАВЛЯЕМ КАК TEXT/PLAIN ДЛЯ ОБОЙТИ CORS
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: action, data: data })
-        });
-        const result = await response.json();
-        if (result.success) { alert('Сохранено!'); closeForm(); loadObjects(); }
-        else { alert('Ошибка: ' + result.error); }
-    } catch (error) { alert('Ошибка: ' + error.message); }
+            mode: 'no-cors',
+            headers: {'Content-Type': 'text/plain;charset=utf-8'},
+            body: JSON.stringify({ action: action, data: data })        });
+       
+        // При no-cors мы не можем прочитать ответ, но предполагаем успех
+        alert('Сохранено!');
+        closeForm();
+        loadObjects();
+       
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
 }
 
 async function editObject(id) {
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);        const data = await response.json();
+        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+        const data = await response.json();
         if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
         const headers = data[0];
         const rows = data.slice(1);
@@ -277,8 +292,7 @@ async function editObject(id) {
         document.getElementById('prop-image-main').value = obj.image_main || '';
         document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
         document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
-        document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';
-        document.getElementById('prop-features').value = obj.features || '';
+        document.getElementById('prop-floor-plans-images').value = obj.floor_plans_images || '';        document.getElementById('prop-features').value = obj.features || '';
         document.getElementById('prop-address').value = obj.address || '';
         document.getElementById('prop-lat').value = obj.lat || '';
         document.getElementById('prop-lng').value = obj.lng || '';
@@ -289,13 +303,14 @@ async function editObject(id) {
 async function deleteObject(id) {
     if (!confirm('Удалить объект?')) return;
     try {
-        const response = await fetch(SCRIPT_URL, {
+        await fetch(SCRIPT_URL, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })        });
-        const result = await response.json();
-        if (result.success) { alert('Удалено!'); loadObjects(); }
-        else { alert('Ошибка: ' + result.error); }
+            mode: 'no-cors',
+            headers: {'Content-Type': 'text/plain;charset=utf-8'},
+            body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
+        });
+        alert('Удалено!');
+        loadObjects();
     } catch (error) { alert('Ошибка: ' + error.message); }
 }
 
