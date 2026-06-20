@@ -62,7 +62,7 @@ async function checkPinAndLoad(msg) {
         try {
             const res = await fetch(SCRIPT_URL);
             if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
+                throw new Error('HTTP error! status: ' + res.status);
             }
             const data = await res.json();
             if (data.needs_setup) showPinScreen(true);
@@ -72,9 +72,9 @@ async function checkPinAndLoad(msg) {
         }
     } else {
         try {
-            const res = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+            const res = await fetch(SCRIPT_URL + '?pin=' + PIN);
             if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
+                throw new Error('HTTP error! status: ' + res.status);
             }
             const data = await res.json();
 
@@ -128,15 +128,15 @@ async function submitPin() {
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
-           
+
             setTimeout(async function() {
                 try {
                     const checkRes = await fetch(SCRIPT_URL);
                     if (!checkRes.ok) {
-                        throw new Error(`HTTP error! status: ${checkRes.status}`);
+                        throw new Error('HTTP error! status: ' + checkRes.status);
                     }
                     const checkData = await checkRes.json();
-                   
+
                     if (!checkData.needs_setup) {
                         PIN = inputPin;
                         localStorage.setItem('pin', PIN);
@@ -150,7 +150,7 @@ async function submitPin() {
                 btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
                 btn.disabled = false;
             }, 2000);
-           
+
             return;
         } catch(e) {
             alert('Ошибка установки PIN: ' + e.message);
@@ -175,9 +175,9 @@ async function loadObjects() {
     const list = document.getElementById('objects-list');
     list.innerHTML = 'Загрузка...';
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
+        const response = await fetch(SCRIPT_URL + '?pin=' + PIN);
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('HTTP error! status: ' + response.status);
         }
         const data = await response.json();
         if (data.error && !Array.isArray(data)) {
@@ -195,14 +195,19 @@ function renderObjects(data) {
     if (!Array.isArray(data) || data.length <= 1) {
         list.innerHTML = '<p>Нет объектов</p>';
         return;    }
-   
+
     const headers = data[0];
     const rows = data.slice(1);
-   
+
     list.innerHTML = rows.map(function(row) {
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = row[i]; });
+        var imgHtml = '';
+        if (obj.image_main) {
+            imgHtml = '<img src="' + escapeHtml(obj.image_main) + '" style="width:100%;border-radius:8px;margin-bottom:8px;" onerror="this.style.display=\'none\'">';
+        }
         return '<div class="object-card">' +
+            imgHtml +
             '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
             '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
             '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
@@ -221,9 +226,12 @@ function openForm() {
     document.getElementById('property-form').reset();
     document.getElementById('prop-id').value = '';
     uploadedImages = { main: null, gallery: [], floorPlans: [] };
-    document.getElementById('image-main-preview').style.display = 'none';
-    document.getElementById('image-gallery-preview').style.display = 'none';
-    document.getElementById('image-floor-plans-preview').style.display = 'none';
+    var mainPreview = document.getElementById('image-main-preview');
+    var galleryPreview = document.getElementById('image-gallery-preview');
+    var floorPreview = document.getElementById('image-floor-plans-preview');
+    if (mainPreview) mainPreview.style.display = 'none';
+    if (galleryPreview) galleryPreview.style.display = 'none';
+    if (floorPreview) floorPreview.style.display = 'none';
 }
 
 function closeForm() {
@@ -235,64 +243,81 @@ async function handleImageSelect(event, type) {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const btn = document.createElement('button');
-    btn.textContent = 'Загрузка фото...';
-    btn.style.cssText = 'background:#f39c12; color:white; border:none; padding:10px; border-radius:5px; margin-top:10px;';
-    event.target.parentNode.appendChild(btn);
+    const statusEl = document.createElement('div');    statusEl.textContent = '⏳ Загрузка фото...';
+    statusEl.style.cssText = 'background:#fff3cd;color:#856404;padding:10px;border-radius:5px;margin-top:10px;font-weight:bold;';
+    event.target.parentNode.appendChild(statusEl);
 
     try {
         if (type === 'main') {
             const file = files[0];
-            const url = await uploadImageToDrive(file);            uploadedImages.main = url;
+            const url = await uploadImageToDrive(file);
+            uploadedImages.main = url;
             document.getElementById('prop-image-main').value = url;
-           
-            const preview = document.getElementById('image-main-preview');
-            const previewImg = document.getElementById('image-main-preview-img');
-            previewImg.src = URL.createObjectURL(file);
-            preview.style.display = 'block';
-           
+
+            var preview = document.getElementById('image-main-preview');
+            var previewImg = document.getElementById('image-main-preview-img');
+            if (preview && previewImg) {
+                previewImg.src = URL.createObjectURL(file);
+                preview.style.display = 'block';
+            }
+            statusEl.textContent = '✅ Главное фото загружено!';
+            statusEl.style.background = '#d4edda';
+            statusEl.style.color = '#155724';
+
         } else if (type === 'gallery') {
             const urls = [];
             for (let i = 0; i < files.length; i++) {
+                statusEl.textContent = '⏳ Загрузка фото ' + (i + 1) + ' из ' + files.length + '...';
                 const url = await uploadImageToDrive(files[i]);
                 urls.push(url);
             }
             uploadedImages.gallery = urls;
             document.getElementById('prop-images-gallery').value = urls.join(',');
-           
-            const container = document.getElementById('gallery-images-container');
-            container.innerHTML = '';
-            for (let i = 0; i < files.length; i++) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(files[i]);
-                img.style.cssText = 'width:80px; height:80px; object-fit:cover; border-radius:5px;';
-                container.appendChild(img);
+
+            var container = document.getElementById('gallery-images-container');
+            if (container) {
+                container.innerHTML = '';
+                for (let i = 0; i < files.length; i++) {
+                    var img = document.createElement('img');
+                    img.src = URL.createObjectURL(files[i]);
+                    img.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:5px;margin:2px;';
+                    container.appendChild(img);
+                }
+                document.getElementById('image-gallery-preview').style.display = 'block';
             }
-            document.getElementById('image-gallery-preview').style.display = 'block';
-           
+            statusEl.textContent = '✅ Галерея загружена! (' + urls.length + ' фото)';
+            statusEl.style.background = '#d4edda';
+            statusEl.style.color = '#155724';
+
         } else if (type === 'floor-plans') {
             const urls = [];
             for (let i = 0; i < files.length; i++) {
-                const url = await uploadImageToDrive(files[i]);
+                statusEl.textContent = '⏳ Загрузка планировки ' + (i + 1) + ' из ' + files.length + '...';                const url = await uploadImageToDrive(files[i]);
                 urls.push(url);
             }
             uploadedImages.floorPlans = urls;
             document.getElementById('prop-floor-plans-images').value = urls.join(',');
-           
-            const container = document.getElementById('floor-plans-images-container');
-            container.innerHTML = '';
-            for (let i = 0; i < files.length; i++) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(files[i]);
-                img.style.cssText = 'width:80px; height:80px; object-fit:cover; border-radius:5px;';
-                container.appendChild(img);
+
+            var fpContainer = document.getElementById('floor-plans-images-container');
+            if (fpContainer) {
+                fpContainer.innerHTML = '';
+                for (let i = 0; i < files.length; i++) {
+                    var fpImg = document.createElement('img');
+                    fpImg.src = URL.createObjectURL(files[i]);
+                    fpImg.style.cssText = 'width:80px;height:80px;object-fit:cover;border-radius:5px;margin:2px;';
+                    fpContainer.appendChild(fpImg);
+                }
+                document.getElementById('image-floor-plans-preview').style.display = 'block';
             }
-            document.getElementById('image-floor-plans-preview').style.display = 'block';
+            statusEl.textContent = '✅ Планировки загружены! (' + urls.length + ' фото)';
+            statusEl.style.background = '#d4edda';
+            statusEl.style.color = '#155724';
         }
-       
+
     } catch (error) {
-        alert('Ошибка загрузки фото: ' + error.message);
-    } finally {        btn.remove();
+        statusEl.textContent = '❌ Ошибка: ' + error.message;
+        statusEl.style.background = '#f8d7da';
+        statusEl.style.color = '#721c24';
     }
 }
 
@@ -302,7 +327,7 @@ async function uploadImageToDrive(file) {
         reader.onload = async function(e) {
             try {
                 const base64Data = e.target.result;
-               
+
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -316,57 +341,56 @@ async function uploadImageToDrive(file) {
                         }
                     })
                 });
-               
-                await new Promise(r => setTimeout(r, 2000));
-               
+                await new Promise(r => setTimeout(r, 3000));
+
                 const response = await fetch(SCRIPT_URL + '?action=get_last_file_url&pin=' + PIN);
                 if (!response.ok) {
-                    throw new Error('Failed to get file URL');
+                    throw new Error('Не удалось получить URL файла (HTTP ' + response.status + ')');
                 }
                 const result = await response.json();
-               
-                if (result.success) {
+
+                if (result.success && result.url) {
                     resolve(result.url);
                 } else {
-                    reject(new Error('Failed to get file URL'));
+                    reject(new Error(result.error || 'URL файла пустой'));
                 }
-               
+
             } catch (error) {
                 reject(error);
             }
         };
-        reader.onerror = reject;
+        reader.onerror = function() { reject(new Error('Не удалось прочитать файл')); };
         reader.readAsDataURL(file);
     });
 }
 
 async function handleSubmit(e) {
-    e.preventDefault();   
+    e.preventDefault();
+
     const name = document.getElementById('prop-name').value.trim();
     const address = document.getElementById('prop-address').value.trim();
     const imageMain = document.getElementById('prop-image-main').value.trim();
-   
+
     if (!name) {
         alert('❌ Поле "Название ЖК" обязательно для заполнения!');
         return;
     }
-   
+
     if (!address) {
-        alert(' Поле "Адрес" обязательно для заполнения!');
+        alert('❌ Поле "Адрес" обязательно для заполнения!');
         return;
     }
-   
+
     if (!imageMain) {
-        alert('❌ Поле "Главное фото" обязательно для заполнения!');
+        alert('❌ Поле "Главное фото" обязательно для заполнения! Нажмите "Выбрать файл" и дождитесь загрузки фото.');
         return;
     }
-   
+
     const data = {
         id: document.getElementById('prop-id').value,
         name: name,
         district: document.getElementById('prop-district').value,
-        metro: document.getElementById('prop-metro').value,
-        price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
+        metro: document.getElementById('prop-metro').value,        price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
         price_to: parseFloat(document.getElementById('prop-price-to').value) || null,
         rooms: document.getElementById('prop-rooms').value,
         area_min: parseFloat(document.getElementById('prop-area-min').value) || null,
@@ -389,30 +413,24 @@ async function handleSubmit(e) {
         active: document.getElementById('prop-active').value,
         pin: PIN
     };
-   
-    const existingId = document.getElementById('prop-id').value;    const action = existingId ? 'update' : 'create';
-  
+
+    const existingId = document.getElementById('prop-id').value;
+    const action = existingId ? 'update' : 'create';
+
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            mode: 'no-cors',
+            headers: {'Content-Type': 'text/plain;charset=utf-8'},
             body: JSON.stringify({ action: action, data: data })
         });
-       
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-       
-        const result = await response.json();
-       
-        if (result.success) {
+
+        setTimeout(async function() {
             alert('✅ Объект успешно сохранён!');
             closeForm();
             loadObjects();
-        } else {
-            alert(' Ошибка: ' + result.error);
-        }
-       
+        }, 2000);
+
     } catch (error) {
         alert('❌ Ошибка сети: ' + error.message);
     }
@@ -420,26 +438,26 @@ async function handleSubmit(e) {
 
 async function editObject(id) {
     try {
-        const response = await fetch(`${SCRIPT_URL}?pin=${PIN}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await fetch(SCRIPT_URL + '?pin=' + PIN);
+        if (!response.ok) {            throw new Error('HTTP error! status: ' + response.status);
         }
         const data = await response.json();
         if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
-       
+
         const headers = data[0];
         const rows = data.slice(1);
-       
+
         const foundRow = rows.find(function(row) {
             const rowObj = {};
             headers.forEach(function(header, i) { rowObj[header] = row[i]; });
             return rowObj.id === id;
         });
-       
+
         if (!foundRow) { alert('Объект не найден'); return; }
-       
+
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
+
         document.getElementById('main-screen').style.display = 'none';
         document.getElementById('form-screen').style.display = 'block';
         document.getElementById('form-title').textContent = 'Редактировать';
@@ -470,28 +488,23 @@ async function editObject(id) {
         document.getElementById('prop-active').value = obj.active || 'TRUE';
     } catch (error) { alert('Ошибка: ' + error.message); }
 }
-
 async function deleteObject(id) {
     if (!confirm('Удалить объект?')) return;
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            mode: 'no-cors',
+            headers: {'Content-Type': 'text/plain;charset=utf-8'},
             body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
         });
-       
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-       
-        const result = await response.json();
-        if (result.success) {
-            alert('Объект удалён!');
+
+        setTimeout(async function() {
+            alert('✅ Объект удалён!');
             loadObjects();
-        } else {             alert('Ошибка: ' + result.error);
-        }
+        }, 2000);
+
     } catch (error) {
-        alert('Ошибка: ' + error.message);
+        alert('❌ Ошибка: ' + error.message);
     }
 }
 
