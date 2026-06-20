@@ -46,7 +46,7 @@ function logout() {
 async function init() {
     const scriptParam = getUrlParameter('script');
     if (scriptParam) {
-        SCRIPT_URL = scriptParam;
+        SCRIPT_URL = decodeURIComponent(scriptParam);
         localStorage.setItem('script_url', SCRIPT_URL);        cleanUrl();
     }
 
@@ -205,7 +205,7 @@ function renderObjects(data) {
         return '<div class="object-card">' +
             '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
             '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
-            '<p> ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
                 '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
@@ -303,9 +303,10 @@ async function uploadImageToDrive(file) {
             try {
                 const base64Data = e.target.result;
                
-                const response = await fetch(SCRIPT_URL, {
+                await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    mode: 'no-cors',
+                    headers: {'Content-Type': 'text/plain;charset=utf-8'},
                     body: JSON.stringify({
                         action: 'upload_image',
                         data: {
@@ -316,16 +317,18 @@ async function uploadImageToDrive(file) {
                     })
                 });
                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                await new Promise(r => setTimeout(r, 2000));
                
+                const response = await fetch(SCRIPT_URL + '?action=get_last_file_url&pin=' + PIN);
+                if (!response.ok) {
+                    throw new Error('Failed to get file URL');
+                }
                 const result = await response.json();
                
                 if (result.success) {
                     resolve(result.url);
                 } else {
-                    reject(new Error(result.error));
+                    reject(new Error('Failed to get file URL'));
                 }
                
             } catch (error) {
@@ -338,10 +341,10 @@ async function uploadImageToDrive(file) {
 }
 
 async function handleSubmit(e) {
-    e.preventDefault();
-   
+    e.preventDefault();   
     const name = document.getElementById('prop-name').value.trim();
-    const address = document.getElementById('prop-address').value.trim();    const imageMain = document.getElementById('prop-image-main').value.trim();
+    const address = document.getElementById('prop-address').value.trim();
+    const imageMain = document.getElementById('prop-image-main').value.trim();
    
     if (!name) {
         alert('❌ Поле "Название ЖК" обязательно для заполнения!');
@@ -349,12 +352,12 @@ async function handleSubmit(e) {
     }
    
     if (!address) {
-        alert('❌ Поле "Адрес" обязательно для заполнения!');
+        alert(' Поле "Адрес" обязательно для заполнения!');
         return;
     }
    
     if (!imageMain) {
-        alert('❌ Поле "Главное фото" обязательно для заполнения! Выберите фото из галереи.');
+        alert('❌ Поле "Главное фото" обязательно для заполнения!');
         return;
     }
    
@@ -387,10 +390,10 @@ async function handleSubmit(e) {
         pin: PIN
     };
    
-    const existingId = document.getElementById('prop-id').value;
-    const action = existingId ? 'update' : 'create';
+    const existingId = document.getElementById('prop-id').value;    const action = existingId ? 'update' : 'create';
   
-    try {        const response = await fetch(SCRIPT_URL, {
+    try {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: action, data: data })
@@ -407,7 +410,7 @@ async function handleSubmit(e) {
             closeForm();
             loadObjects();
         } else {
-            alert('❌ Ошибка: ' + result.error);
+            alert(' Ошибка: ' + result.error);
         }
        
     } catch (error) {
@@ -437,9 +440,9 @@ async function editObject(id) {
        
         const obj = {};
         headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
-
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';
+        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -485,10 +488,10 @@ async function deleteObject(id) {
         if (result.success) {
             alert('Объект удалён!');
             loadObjects();
-        } else {
-            alert('Ошибка: ' + result.error);
+        } else {             alert('Ошибка: ' + result.error);
         }
-    } catch (error) {         alert('Ошибка: ' + error.message);
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
     }
 }
 
