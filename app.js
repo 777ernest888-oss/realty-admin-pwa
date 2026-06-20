@@ -7,7 +7,7 @@ let uploadedImages = {
     floorPlans: []
 };
 
-console.log('🚀 [INIT] SCRIPT_URL:', SCRIPT_URL);
+console.log(' [INIT] SCRIPT_URL:', SCRIPT_URL);
 console.log('🚀 [INIT] PIN:', PIN ? 'установлен' : 'не установлен');
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -70,7 +70,7 @@ async function checkPinAndLoad(msg) {
     console.log('🔐 [AUTH] Checking PIN...');
     if (!PIN) {
         try {
-            console.log('📡 [AUTH] Fetching without PIN...');
+            console.log(' [AUTH] Fetching without PIN...');
             const res = await fetch(SCRIPT_URL);
             console.log('📥 [AUTH] Response status:', res.status);
             if (!res.ok) {
@@ -88,7 +88,7 @@ async function checkPinAndLoad(msg) {
         try {
             console.log('📡 [AUTH] Fetching with PIN...');
             const res = await fetch(SCRIPT_URL + '?pin=' + PIN);
-            console.log('📥 [AUTH] Response status:', res.status);
+            console.log(' [AUTH] Response status:', res.status);
             if (!res.ok) {
                 throw new Error('HTTP error! status: ' + res.status);
             }
@@ -147,7 +147,6 @@ async function submitPin() {
         try {
             console.log('💾 [PIN] Setting up new PIN...');            await fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
                 body: JSON.stringify({ action: 'setup_pin', data: { pin: inputPin } })
             });
@@ -194,8 +193,8 @@ async function submitPin() {
     btn.disabled = false;
 }
 
-function showMainScreen() {    console.log('🏠 [UI] Showing main screen');
-    document.getElementById('pin-screen').style.display = 'none';
+function showMainScreen() {
+    console.log('🏠 [UI] Showing main screen');    document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
 }
@@ -243,8 +242,8 @@ function renderObjects(data) {
         }
         return '<div class="object-card">' +
             imgHtml +
-            '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +            '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
-            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
+            '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
+            '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +            '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
                 '<button onclick="editObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-primary">Редактировать</button>' +
@@ -255,7 +254,7 @@ function renderObjects(data) {
 }
 
 function openForm() {
-    console.log('➕ [FORM] Opening form');
+    console.log(' [FORM] Opening form');
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('form-screen').style.display = 'block';
     document.getElementById('form-title').textContent = 'Новый объект';
@@ -286,14 +285,14 @@ async function handleImageSelect(event, type) {
 
     console.log('📁 [UPLOAD] Files:', files.length);
     const statusEl = document.createElement('div');
-    statusEl.textContent = '⏳ Загрузка фото...';
+    statusEl.textContent = ' Загрузка фото...';
     statusEl.style.cssText = 'background:#fff3cd;color:#856404;padding:10px;border-radius:5px;margin-top:10px;font-weight:bold;';
     event.target.parentNode.appendChild(statusEl);
 
     try {
         if (type === 'main') {
-            console.log('🖼️ [UPLOAD] Uploading main image...');            const file = files[0];
-            console.log('📄 [UPLOAD] File:', file.name, file.size, 'bytes');
+            console.log('🖼️ [UPLOAD] Uploading main image...');
+            const file = files[0];            console.log('📄 [UPLOAD] File:', file.name, file.size, 'bytes');
             const url = await uploadImageToDrive(file);
             console.log('✅ [UPLOAD] Main image URL:', url);
             uploadedImages.main = url;
@@ -314,7 +313,7 @@ async function handleImageSelect(event, type) {
             console.log('🖼️ [UPLOAD] Uploading gallery images...');
             const urls = [];
             for (let i = 0; i < files.length; i++) {
-                statusEl.textContent = '⏳ Загрузка фото ' + (i + 1) + ' из ' + files.length + '...';
+                statusEl.textContent = ' Загрузка фото ' + (i + 1) + ' из ' + files.length + '...';
                 const url = await uploadImageToDrive(files[i]);
                 urls.push(url);
             }
@@ -338,11 +337,11 @@ async function handleImageSelect(event, type) {
             statusEl.style.color = '#155724';
 
         } else if (type === 'floor-plans') {
-            console.log('️ [UPLOAD] Uploading floor plans...');
+            console.log('📐 [UPLOAD] Uploading floor plans...');
             const urls = [];
             for (let i = 0; i < files.length; i++) {
-                statusEl.textContent = '⏳ Загрузка планировки ' + (i + 1) + ' из ' + files.length + '...';                const url = await uploadImageToDrive(files[i]);
-                urls.push(url);
+                statusEl.textContent = ' Загрузка планировки ' + (i + 1) + ' из ' + files.length + '...';
+                const url = await uploadImageToDrive(files[i]);                urls.push(url);
             }
             uploadedImages.floorPlans = urls;
             document.getElementById('prop-floor-plans-images').value = urls.join(',');
@@ -381,22 +380,41 @@ async function uploadImageToDrive(file) {
                 const base64Data = e.target.result;
                 console.log('📊 [DRIVE] Base64 length:', base64Data.length);
 
-                console.log('📡 [DRIVE] Sending upload request...');
+                console.log(' [DRIVE] Sending upload request...');
                 console.log('📍 [DRIVE] SCRIPT_URL:', SCRIPT_URL);
-                console.log('🔐 [DRIVE] PIN:', PIN ? 'present' : 'missing');
+                console.log(' [DRIVE] PIN:', PIN ? 'present' : 'missing');
                
-                await fetch(SCRIPT_URL, {
+                // ВАЖНО: БЕЗ mode: 'no-cors'! text/plain — простой тип, preflight не нужен
+                const uploadResponse = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: {'Content-Type': 'text/plain;charset=utf-8'},
                     body: JSON.stringify({
-                        action: 'upload_image',                        data: {
-                            image: base64Data,
+                        action: 'upload_image',
+                        data: {                            image: base64Data,
                             fileName: file.name,
                             pin: PIN
                         }
                     })
                 });
+               
+                console.log('📥 [DRIVE] Upload response status:', uploadResponse.status);
+               
+                let uploadResult = null;
+                try {
+                    uploadResult = await uploadResponse.json();
+                    console.log('📦 [DRIVE] Upload result:', uploadResult);
+                } catch (parseErr) {
+                    console.warn('⚠️ [DRIVE] Could not parse upload response:', parseErr);
+                }
+
+                // Если получили ответ сразу — используем его
+                if (uploadResult && uploadResult.success && uploadResult.url) {
+                    console.log('✅ [DRIVE] Got URL directly:', uploadResult.url);
+                    resolve(uploadResult.url);
+                    return;
+                }
+
+                // Иначе ждём и запрашиваем через get_last_file_url
                 console.log('⏳ [DRIVE] Waiting for processing...');
                 await new Promise(r => setTimeout(r, 3000));
 
@@ -421,8 +439,7 @@ async function uploadImageToDrive(file) {
                 console.error('❌ [DRIVE] Upload error:', error);
                 reject(error);
             }
-        };
-        reader.onerror = function() {
+        };        reader.onerror = function() {
             console.error('❌ [DRIVE] File read error');
             reject(new Error('Не удалось прочитать файл'));
         };
@@ -438,8 +455,9 @@ async function handleSubmit(e) {
     const address = document.getElementById('prop-address').value.trim();
     const imageMain = document.getElementById('prop-image-main').value.trim();
 
-    console.log('📝 [SUBMIT] Name:', name);
-    console.log('📝 [SUBMIT] Address:', address);    console.log(' [SUBMIT] Image URL:', imageMain);
+    console.log(' [SUBMIT] Name:', name);
+    console.log('📝 [SUBMIT] Address:', address);
+    console.log('🖼️ [SUBMIT] Image URL:', imageMain);
 
     if (!name) {
         console.error('❌ [SUBMIT] Missing name');
@@ -470,8 +488,7 @@ async function handleSubmit(e) {
         area_min: parseFloat(document.getElementById('prop-area-min').value) || null,
         area_max: parseFloat(document.getElementById('prop-area-max').value) || null,
         price_per_sqm: parseFloat(document.getElementById('prop-price-per-sqm').value) || null,
-        completion_soonest: document.getElementById('prop-completion-soonest').value,
-        completion_all: document.getElementById('prop-completion-all').value,
+        completion_soonest: document.getElementById('prop-completion-soonest').value,        completion_all: document.getElementById('prop-completion-all').value,
         status: document.getElementById('prop-status').value,
         class: document.getElementById('prop-class').value,
         finishing: document.getElementById('prop-finishing').value,
@@ -488,23 +505,39 @@ async function handleSubmit(e) {
         pin: PIN
     };
 
-    const existingId = document.getElementById('prop-id').value;    const action = existingId ? 'update' : 'create';
+    const existingId = document.getElementById('prop-id').value;
+    const action = existingId ? 'update' : 'create';
 
-    console.log('📡 [SUBMIT] Sending data...');
+    console.log(' [SUBMIT] Sending data...');
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {'Content-Type': 'text/plain;charset=utf-8'},
             body: JSON.stringify({ action: action, data: data })
         });
-        console.log('✅ [SUBMIT] Sent successfully');
+        console.log('📥 [SUBMIT] Response status:', response.status);
+       
+        let result = null;
+        try {
+            result = await response.json();
+            console.log('📦 [SUBMIT] Result:', result);
+        } catch (parseErr) {
+            console.warn('⚠️ [SUBMIT] Could not parse response');
+        }
 
-        setTimeout(async function() {
+        if (result && result.success) {
             alert('✅ Объект успешно сохранён!');
             closeForm();
             loadObjects();
-        }, 2000);
+        } else if (result && result.error) {
+            alert(' Ошибка: ' + result.error);
+        } else {
+            // Если не получили ответ (no-cors режим)
+            setTimeout(async function() {
+                alert('✅ Объект успешно сохранён!');
+                closeForm();
+                loadObjects();
+            }, 2000);        }
 
     } catch (error) {
         console.error('❌ [SUBMIT] Error:', error);
@@ -513,7 +546,7 @@ async function handleSubmit(e) {
 }
 
 async function editObject(id) {
-    console.log('✏️ [EDIT] Editing object:', id);
+    console.log('️ [EDIT] Editing object:', id);
     try {
         const response = await fetch(SCRIPT_URL + '?pin=' + PIN);
         if (!response.ok) {
@@ -537,7 +570,8 @@ async function editObject(id) {
         headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
 
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';
+        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -552,8 +586,7 @@ async function editObject(id) {
         document.getElementById('prop-completion-all').value = obj.completion_all || '';
         document.getElementById('prop-status').value = obj.status || 'Строится';
         document.getElementById('prop-class').value = obj.class || 'Комфорт';
-        document.getElementById('prop-finishing').value = obj.finishing || '';
-        document.getElementById('prop-description').value = obj.description || '';
+        document.getElementById('prop-finishing').value = obj.finishing || '';        document.getElementById('prop-description').value = obj.description || '';
         document.getElementById('prop-image-main').value = obj.image_main || '';
         document.getElementById('prop-images-gallery').value = obj.images_gallery || '';
         document.getElementById('prop-floor-plans-text').value = obj.floor_plans_text || '';
@@ -563,7 +596,10 @@ async function editObject(id) {
         document.getElementById('prop-lat').value = obj.lat || '';
         document.getElementById('prop-lng').value = obj.lng || '';
         document.getElementById('prop-active').value = obj.active || 'TRUE';
-    } catch (error) { alert('Ошибка: ' + error.message); }
+    } catch (error) {
+        console.error('❌ [EDIT] Error:', error);
+        alert('Ошибка: ' + error.message);
+    }
 }
 
 async function deleteObject(id) {
@@ -572,21 +608,36 @@ async function deleteObject(id) {
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {'Content-Type': 'text/plain;charset=utf-8'},
             body: JSON.stringify({ action: 'delete', data: {id: id, pin: PIN} })
         });
-
-        setTimeout(async function() {
+        console.log('📥 [DELETE] Response status:', response.status);
+       
+        let result = null;
+        try {
+            result = await response.json();
+            console.log(' [DELETE] Result:', result);
+        } catch (parseErr) {
+            console.warn('️ [DELETE] Could not parse response');
+        }
+       
+        if (result && result.success) {
             alert('✅ Объект удалён!');
             loadObjects();
-        }, 2000);
+        } else if (result && result.error) {
+            alert(' Ошибка: ' + result.error);
+        } else {
+            setTimeout(async function() {
+                alert('✅ Объект удалён!');
+                loadObjects();
+            }, 2000);
+        }
 
     } catch (error) {
         console.error('❌ [DELETE] Error:', error);
-        alert('❌ Ошибка: ' + error.message);
-    }
+        alert('❌ Ошибка: ' + error.message);    }
 }
+
 function openSettings() {
     console.log('⚙️ [SETTINGS] Opening settings');
     document.getElementById('main-screen').style.display = 'none';
