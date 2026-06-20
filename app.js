@@ -7,7 +7,11 @@ let uploadedImages = {
     floorPlans: []
 };
 
+console.log('🚀 [INIT] SCRIPT_URL:', SCRIPT_URL);
+console.log('🚀 [INIT] PIN:', PIN ? 'установлен' : 'не установлен');
+
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 [DOM] Document loaded');
     document.getElementById('property-form').addEventListener('submit', handleSubmit);
     init();
 });
@@ -43,14 +47,19 @@ function logout() {
     }
 }
 
-async function init() {
+async function init() {    console.log('🔄 [INIT] Starting init...');
     const scriptParam = getUrlParameter('script');
+    console.log('📥 [INIT] URL parameter:', scriptParam);
+   
     if (scriptParam) {
         SCRIPT_URL = decodeURIComponent(scriptParam);
-        localStorage.setItem('script_url', SCRIPT_URL);        cleanUrl();
+        localStorage.setItem('script_url', SCRIPT_URL);
+        console.log('✅ [INIT] Saved SCRIPT_URL:', SCRIPT_URL);
+        cleanUrl();
     }
 
     if (!SCRIPT_URL) {
+        console.warn('⚠️ [INIT] No SCRIPT_URL, opening settings');
         openSettings();
         return;
     }
@@ -58,45 +67,58 @@ async function init() {
 }
 
 async function checkPinAndLoad(msg) {
+    console.log('🔐 [AUTH] Checking PIN...');
     if (!PIN) {
         try {
+            console.log('📡 [AUTH] Fetching without PIN...');
             const res = await fetch(SCRIPT_URL);
+            console.log('📥 [AUTH] Response status:', res.status);
             if (!res.ok) {
                 throw new Error('HTTP error! status: ' + res.status);
             }
             const data = await res.json();
+            console.log('📦 [AUTH] Response data:', data);
             if (data.needs_setup) showPinScreen(true);
             else showPinScreen(false, msg);
         } catch (e) {
+            console.error('❌ [AUTH] Error:', e);
             showPinScreen(false, 'Ошибка сети. Проверьте URL.');
         }
     } else {
         try {
+            console.log('📡 [AUTH] Fetching with PIN...');
             const res = await fetch(SCRIPT_URL + '?pin=' + PIN);
+            console.log('📥 [AUTH] Response status:', res.status);
             if (!res.ok) {
                 throw new Error('HTTP error! status: ' + res.status);
             }
             const data = await res.json();
+            console.log('📦 [AUTH] Response data:', data);
 
             if (data.unauthorized || data.error === 'Неверный PIN') {
-                PIN = '';
+                console.error('❌ [AUTH] Wrong PIN');                PIN = '';
                 localStorage.removeItem('pin');
                 showPinScreen(false, 'Неверный PIN. Попробуйте ещё раз или обратитесь к Администратору.');
             } else if (data.needs_setup) {
+                console.log('⚠️ [AUTH] Needs setup');
                 showPinScreen(true);
             } else {
+                console.log('✅ [AUTH] Success!');
                 showMainScreen();
                 renderObjects(data);
             }
         } catch (e) {
+            console.error('❌ [AUTH] Error:', e);
             showPinScreen(false, 'Ошибка сети');
         }
     }
 }
 
 function showPinScreen(isSetup, msg) {
+    console.log('🔑 [UI] Showing PIN screen, isSetup:', isSetup);
     document.getElementById('main-screen').style.display = 'none';
-    document.getElementById('settings-screen').style.display = 'none';    document.getElementById('pin-screen').style.display = 'block';
+    document.getElementById('settings-screen').style.display = 'none';
+    document.getElementById('pin-screen').style.display = 'block';
 
     isSetupMode = isSetup;
     document.getElementById('pin-title').textContent = isSetup ? 'Придумайте PIN-код' : 'Введите PIN-код';
@@ -109,6 +131,7 @@ function showPinScreen(isSetup, msg) {
 
 async function submitPin() {
     const inputPin = document.getElementById('pin-input').value;
+    console.log('🔢 [PIN] Entered:', inputPin);
     if (!inputPin) return;
 
     if (!/^\d{6,}$/.test(inputPin)) {
@@ -122,7 +145,7 @@ async function submitPin() {
 
     if (isSetupMode) {
         try {
-            await fetch(SCRIPT_URL, {
+            console.log('💾 [PIN] Setting up new PIN...');            await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {'Content-Type': 'text/plain;charset=utf-8'},
@@ -136,16 +159,20 @@ async function submitPin() {
                         throw new Error('HTTP error! status: ' + checkRes.status);
                     }
                     const checkData = await checkRes.json();
+                    console.log('📦 [PIN] Setup check:', checkData);
 
                     if (!checkData.needs_setup) {
                         PIN = inputPin;
                         localStorage.setItem('pin', PIN);
+                        console.log('✅ [PIN] PIN saved');
                         showMainScreen();
                         loadObjects();
                     } else {
                         alert('PIN не установлен. Попробуйте ещё раз.');
                     }
-                } catch (e) {                    alert('Ошибка проверки PIN: ' + e.message);
+                } catch (e) {
+                    console.error('❌ [PIN] Setup error:', e);
+                    alert('Ошибка проверки PIN: ' + e.message);
                 }
                 btn.textContent = isSetupMode ? 'Сохранить' : 'Войти';
                 btn.disabled = false;
@@ -153,9 +180,11 @@ async function submitPin() {
 
             return;
         } catch(e) {
+            console.error('❌ [PIN] Setup error:', e);
             alert('Ошибка установки PIN: ' + e.message);
         }
     } else {
+        console.log('🔐 [PIN] Logging in with existing PIN');
         PIN = inputPin;
         localStorage.setItem('pin', PIN);
         await checkPinAndLoad();
@@ -165,36 +194,42 @@ async function submitPin() {
     btn.disabled = false;
 }
 
-function showMainScreen() {
+function showMainScreen() {    console.log('🏠 [UI] Showing main screen');
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
 }
 
 async function loadObjects() {
+    console.log('📋 [LOAD] Loading objects...');
     const list = document.getElementById('objects-list');
     list.innerHTML = 'Загрузка...';
     try {
         const response = await fetch(SCRIPT_URL + '?pin=' + PIN);
+        console.log('📥 [LOAD] Response status:', response.status);
         if (!response.ok) {
             throw new Error('HTTP error! status: ' + response.status);
         }
         const data = await response.json();
+        console.log('📦 [LOAD] Objects count:', Array.isArray(data) ? data.length - 1 : 0);
         if (data.error && !Array.isArray(data)) {
             list.innerHTML = '<p style="color:red;">' + data.error + '</p>';
             return;
         }
         renderObjects(data);
     } catch (error) {
+        console.error('❌ [LOAD] Error:', error);
         list.innerHTML = '<p style="color:red;">Ошибка: ' + error.message + '</p>';
     }
 }
 
 function renderObjects(data) {
+    console.log('🎨 [RENDER] Rendering objects...');
     const list = document.getElementById('objects-list');
     if (!Array.isArray(data) || data.length <= 1) {
         list.innerHTML = '<p>Нет объектов</p>';
-        return;    }
+        return;
+    }
 
     const headers = data[0];
     const rows = data.slice(1);
@@ -208,8 +243,7 @@ function renderObjects(data) {
         }
         return '<div class="object-card">' +
             imgHtml +
-            '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +
-            '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
+            '<h3>' + escapeHtml(obj.name || 'Без названия') + '</h3>' +            '<p class="price">' + escapeHtml(obj.price_from || '?') + ' - ' + escapeHtml(obj.price_to || '?') + ' млн руб</p>' +
             '<p>📍 ' + escapeHtml(obj.address || 'Адрес не указан') + '</p>' +
             '<p>🏗 ' + escapeHtml(obj.status || 'Статус неизвестен') + '</p>' +
             '<div class="actions">' +
@@ -217,9 +251,11 @@ function renderObjects(data) {
                 '<button onclick="deleteObject(\'' + escapeHtml(obj.id) + '\')" class="btn btn-secondary">Удалить</button>' +
             '</div></div>';
     }).join('');
+    console.log('✅ [RENDER] Done');
 }
 
 function openForm() {
+    console.log('➕ [FORM] Opening form');
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('form-screen').style.display = 'block';
     document.getElementById('form-title').textContent = 'Новый объект';
@@ -235,24 +271,34 @@ function openForm() {
 }
 
 function closeForm() {
+    console.log('❌ [FORM] Closing form');
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
 }
 
 async function handleImageSelect(event, type) {
+    console.log('📸 [UPLOAD] Starting upload, type:', type);
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+        console.warn('⚠️ [UPLOAD] No files selected');
+        return;
+    }
 
-    const statusEl = document.createElement('div');    statusEl.textContent = '⏳ Загрузка фото...';
+    console.log('📁 [UPLOAD] Files:', files.length);
+    const statusEl = document.createElement('div');
+    statusEl.textContent = '⏳ Загрузка фото...';
     statusEl.style.cssText = 'background:#fff3cd;color:#856404;padding:10px;border-radius:5px;margin-top:10px;font-weight:bold;';
     event.target.parentNode.appendChild(statusEl);
 
     try {
         if (type === 'main') {
-            const file = files[0];
+            console.log('🖼️ [UPLOAD] Uploading main image...');            const file = files[0];
+            console.log('📄 [UPLOAD] File:', file.name, file.size, 'bytes');
             const url = await uploadImageToDrive(file);
+            console.log('✅ [UPLOAD] Main image URL:', url);
             uploadedImages.main = url;
             document.getElementById('prop-image-main').value = url;
+            console.log('💾 [UPLOAD] Saved to prop-image-main:', document.getElementById('prop-image-main').value);
 
             var preview = document.getElementById('image-main-preview');
             var previewImg = document.getElementById('image-main-preview-img');
@@ -265,6 +311,7 @@ async function handleImageSelect(event, type) {
             statusEl.style.color = '#155724';
 
         } else if (type === 'gallery') {
+            console.log('🖼️ [UPLOAD] Uploading gallery images...');
             const urls = [];
             for (let i = 0; i < files.length; i++) {
                 statusEl.textContent = '⏳ Загрузка фото ' + (i + 1) + ' из ' + files.length + '...';
@@ -273,6 +320,7 @@ async function handleImageSelect(event, type) {
             }
             uploadedImages.gallery = urls;
             document.getElementById('prop-images-gallery').value = urls.join(',');
+            console.log('✅ [UPLOAD] Gallery URLs:', urls);
 
             var container = document.getElementById('gallery-images-container');
             if (container) {
@@ -290,6 +338,7 @@ async function handleImageSelect(event, type) {
             statusEl.style.color = '#155724';
 
         } else if (type === 'floor-plans') {
+            console.log('️ [UPLOAD] Uploading floor plans...');
             const urls = [];
             for (let i = 0; i < files.length; i++) {
                 statusEl.textContent = '⏳ Загрузка планировки ' + (i + 1) + ' из ' + files.length + '...';                const url = await uploadImageToDrive(files[i]);
@@ -297,6 +346,7 @@ async function handleImageSelect(event, type) {
             }
             uploadedImages.floorPlans = urls;
             document.getElementById('prop-floor-plans-images').value = urls.join(',');
+            console.log('✅ [UPLOAD] Floor plan URLs:', urls);
 
             var fpContainer = document.getElementById('floor-plans-images-container');
             if (fpContainer) {
@@ -315,6 +365,7 @@ async function handleImageSelect(event, type) {
         }
 
     } catch (error) {
+        console.error('❌ [UPLOAD] Error:', error);
         statusEl.textContent = '❌ Ошибка: ' + error.message;
         statusEl.style.background = '#f8d7da';
         statusEl.style.color = '#721c24';
@@ -322,66 +373,88 @@ async function handleImageSelect(event, type) {
 }
 
 async function uploadImageToDrive(file) {
+    console.log('☁️ [DRIVE] Starting upload to Drive...');
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async function(e) {
             try {
                 const base64Data = e.target.result;
+                console.log('📊 [DRIVE] Base64 length:', base64Data.length);
 
+                console.log('📡 [DRIVE] Sending upload request...');
+                console.log('📍 [DRIVE] SCRIPT_URL:', SCRIPT_URL);
+                console.log('🔐 [DRIVE] PIN:', PIN ? 'present' : 'missing');
+               
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: {'Content-Type': 'text/plain;charset=utf-8'},
                     body: JSON.stringify({
-                        action: 'upload_image',
-                        data: {
+                        action: 'upload_image',                        data: {
                             image: base64Data,
                             fileName: file.name,
                             pin: PIN
                         }
                     })
                 });
+                console.log('⏳ [DRIVE] Waiting for processing...');
                 await new Promise(r => setTimeout(r, 3000));
 
+                console.log('📡 [DRIVE] Fetching file URL...');
                 const response = await fetch(SCRIPT_URL + '?action=get_last_file_url&pin=' + PIN);
+                console.log('📥 [DRIVE] Response status:', response.status);
                 if (!response.ok) {
                     throw new Error('Не удалось получить URL файла (HTTP ' + response.status + ')');
                 }
                 const result = await response.json();
+                console.log('📦 [DRIVE] Result:', result);
 
                 if (result.success && result.url) {
+                    console.log('✅ [DRIVE] Got URL:', result.url);
                     resolve(result.url);
                 } else {
+                    console.error('❌ [DRIVE] No URL in response');
                     reject(new Error(result.error || 'URL файла пустой'));
                 }
 
             } catch (error) {
+                console.error('❌ [DRIVE] Upload error:', error);
                 reject(error);
             }
         };
-        reader.onerror = function() { reject(new Error('Не удалось прочитать файл')); };
+        reader.onerror = function() {
+            console.error('❌ [DRIVE] File read error');
+            reject(new Error('Не удалось прочитать файл'));
+        };
         reader.readAsDataURL(file);
     });
 }
 
 async function handleSubmit(e) {
+    console.log('💾 [SUBMIT] Form submitted');
     e.preventDefault();
 
     const name = document.getElementById('prop-name').value.trim();
     const address = document.getElementById('prop-address').value.trim();
     const imageMain = document.getElementById('prop-image-main').value.trim();
 
+    console.log('📝 [SUBMIT] Name:', name);
+    console.log('📝 [SUBMIT] Address:', address);    console.log(' [SUBMIT] Image URL:', imageMain);
+
     if (!name) {
+        console.error('❌ [SUBMIT] Missing name');
         alert('❌ Поле "Название ЖК" обязательно для заполнения!');
         return;
     }
 
     if (!address) {
+        console.error('❌ [SUBMIT] Missing address');
         alert('❌ Поле "Адрес" обязательно для заполнения!');
         return;
     }
 
     if (!imageMain) {
+        console.error('❌ [SUBMIT] Missing image');
         alert('❌ Поле "Главное фото" обязательно для заполнения! Нажмите "Выбрать файл" и дождитесь загрузки фото.');
         return;
     }
@@ -390,7 +463,8 @@ async function handleSubmit(e) {
         id: document.getElementById('prop-id').value,
         name: name,
         district: document.getElementById('prop-district').value,
-        metro: document.getElementById('prop-metro').value,        price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
+        metro: document.getElementById('prop-metro').value,
+        price_from: parseFloat(document.getElementById('prop-price-from').value) || null,
         price_to: parseFloat(document.getElementById('prop-price-to').value) || null,
         rooms: document.getElementById('prop-rooms').value,
         area_min: parseFloat(document.getElementById('prop-area-min').value) || null,
@@ -414,9 +488,9 @@ async function handleSubmit(e) {
         pin: PIN
     };
 
-    const existingId = document.getElementById('prop-id').value;
-    const action = existingId ? 'update' : 'create';
+    const existingId = document.getElementById('prop-id').value;    const action = existingId ? 'update' : 'create';
 
+    console.log('📡 [SUBMIT] Sending data...');
     try {
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -424,6 +498,7 @@ async function handleSubmit(e) {
             headers: {'Content-Type': 'text/plain;charset=utf-8'},
             body: JSON.stringify({ action: action, data: data })
         });
+        console.log('✅ [SUBMIT] Sent successfully');
 
         setTimeout(async function() {
             alert('✅ Объект успешно сохранён!');
@@ -432,14 +507,17 @@ async function handleSubmit(e) {
         }, 2000);
 
     } catch (error) {
+        console.error('❌ [SUBMIT] Error:', error);
         alert('❌ Ошибка сети: ' + error.message);
     }
 }
 
 async function editObject(id) {
+    console.log('✏️ [EDIT] Editing object:', id);
     try {
         const response = await fetch(SCRIPT_URL + '?pin=' + PIN);
-        if (!response.ok) {            throw new Error('HTTP error! status: ' + response.status);
+        if (!response.ok) {
+            throw new Error('HTTP error! status: ' + response.status);
         }
         const data = await response.json();
         if (!Array.isArray(data) || data.length <= 1) { alert('Объект не найден'); return; }
@@ -459,8 +537,7 @@ async function editObject(id) {
         headers.forEach(function(header, i) { obj[header] = foundRow[i]; });
 
         document.getElementById('main-screen').style.display = 'none';
-        document.getElementById('form-screen').style.display = 'block';
-        document.getElementById('form-title').textContent = 'Редактировать';
+        document.getElementById('form-screen').style.display = 'block';        document.getElementById('form-title').textContent = 'Редактировать';
         document.getElementById('prop-id').value = obj.id || '';
         document.getElementById('prop-name').value = obj.name || '';
         document.getElementById('prop-district').value = obj.district || '';
@@ -488,7 +565,9 @@ async function editObject(id) {
         document.getElementById('prop-active').value = obj.active || 'TRUE';
     } catch (error) { alert('Ошибка: ' + error.message); }
 }
+
 async function deleteObject(id) {
+    console.log('🗑️ [DELETE] Deleting object:', id);
     if (!confirm('Удалить объект?')) return;
     try {
         const response = await fetch(SCRIPT_URL, {
@@ -504,11 +583,12 @@ async function deleteObject(id) {
         }, 2000);
 
     } catch (error) {
+        console.error('❌ [DELETE] Error:', error);
         alert('❌ Ошибка: ' + error.message);
     }
 }
-
 function openSettings() {
+    console.log('⚙️ [SETTINGS] Opening settings');
     document.getElementById('main-screen').style.display = 'none';
     document.getElementById('pin-screen').style.display = 'none';
     document.getElementById('settings-screen').style.display = 'block';
@@ -516,11 +596,13 @@ function openSettings() {
 }
 
 function closeSettings() {
+    console.log('⚙️ [SETTINGS] Closing settings');
     document.getElementById('settings-screen').style.display = 'none';
     if (SCRIPT_URL) init();
 }
 
 function saveSettings() {
+    console.log('💾 [SETTINGS] Saving settings');
     SCRIPT_URL = document.getElementById('script-url').value;
     localStorage.setItem('script_url', SCRIPT_URL);
     closeSettings();
